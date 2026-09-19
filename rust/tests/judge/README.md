@@ -71,7 +71,7 @@ reads it.** The 7-of-7 measured on 18 Sep morning was against the `myshop` book,
 longer exists; it cannot be re-run and is not claimed. Run this yourself; read the number
 you get.
 
-## Replay result, 19 Sep afternoon — smaller judges, and a fault the blank answer hid
+## Replay result, 19 Sep afternoon — smaller judges, and a fault the blank answer hid (UNRELEASED tree, after v0.1.0; the tag is unchanged)
 
 The question was whether the check could run on a smaller model than the 4B, so that a laptop
 without an 8 GB card could judge. Same fixtures, same books, the organ swapped for
