@@ -44,7 +44,7 @@ That is all. Open Claude Code in the repo and work as you do.
 If `SARGE_HOME` is unset or wrong, the handshake is not built, there is no `.sarge`, or
 the organ is down, **the hook says so on every write, loudly, with the reason** (exit 2,
 the one exit Claude Code shows to the model). It never reports a pass while checking
-nothing. Galahad caught the first version doing exactly that, 18 Sep; the fix is this rule.
+nothing. The release review caught the first version doing exactly that, 18 Sep; the fix is this rule.
 
 ## Tested
 

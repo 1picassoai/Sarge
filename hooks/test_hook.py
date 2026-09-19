@@ -5,7 +5,7 @@ The hook's test, by hand, from the clone. Needs the organ on :8421 and the hands
 
 Eight cases. Five are the loop: a bad write is a hit; a run is refused while it stands; a
 harmless command is allowed; a clean write clears it; the run is allowed. Three are the
-guard itself (Galahad, 18 Sep): with the hook copied outside the tree and SARGE_HOME
+guard itself (the release review, 18 Sep): with the hook copied outside the tree and SARGE_HOME
 unset, wrong, or right, it must never report a pass while checking nothing.
 """
 import json

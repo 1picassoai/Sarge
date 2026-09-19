@@ -20,7 +20,7 @@ rule archive-not-delete
   right  | customer.IsArchived = true; await db.SaveChangesAsync();
   right  | UPDATE tools SET is_archived = 1 WHERE id = ?
   allow  CREATE TABLE IF NOT EXISTS, and EnsureCreated() on its own - creating a schema that is missing is not deleting; EnsureDeleted() is never allowed
-  since  2026-09-17 merlin · allow line 2026-09-18 (Galahad's replay: EnsureCreated alone was judged as "recreate")
+  since  2026-09-17 merlin · allow line 2026-09-18 (the release review's replay: EnsureCreated alone was judged as "recreate")
 end
 
 rule explicit-columns

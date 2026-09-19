@@ -4,7 +4,7 @@ REM A check that has never fired on a real violation is not a check. Organ must 
 REM :8421 and the handshake built (cargo build --release).
 REM
 REM The books the fixtures are judged against ship WITH the fixtures (tests\judge\*.sarge),
-REM so a stranger can run this from the clone. (Galahad, 18 Sep: the first version pointed
+REM so a stranger can run this from the clone. (The release review, 18 Sep: the first version pointed
 REM at two repos on one machine, and could not be re-run by anyone else.)
 cd /d "%~dp0"
 set "H=target\release\handshake.exe"

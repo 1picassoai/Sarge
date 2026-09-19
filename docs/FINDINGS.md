@@ -165,7 +165,7 @@ Consistent with the standing Pharma doctrine: sell the disease, not the pill.
 ### Standing caution
 
 CompilerGPT overlaps a live commercial product. Nothing about the 627:1 measurement, the IR,
-or this repo goes outward — no LinkedIn reply, no post, no demo — until Galahad stamps it and
+or this repo goes outward — no LinkedIn reply, no post, no demo — until an independent reviewer signs it and
 Vinn sends it himself.
 
 ---
@@ -206,7 +206,7 @@ Run on the only session with enough boundaries to mean anything (4 compactions):
 3/4 *  "never run any commands on the sector repos - that is law"
 2/4 *  Anchor Law 9: vinn-claude is his memory, never a test bed
 2/4 *  Keys live outside the repo - never printed in output
-2/4    Galahad's stamp gates every public artefact
+2/4    An independent reviewer's signature gates every public artefact
 ```
 
 **Those are the real laws, surfaced with no keyword list and no model call** — only

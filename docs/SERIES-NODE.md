@@ -176,7 +176,7 @@ status-code probe). The RAW seven are judged the same way: one run each, same wo
 
 ---
 
-**A RAW data point, Sat 19 Sep 06:10, for the record and against the bet:** Galahad, walking
+**A RAW data point, Sat 19 Sep 06:10, for the record and against the bet:** the release reviewer, walking
 the release tree before his stamp, ran Node task 1 on the .NET host's RAW arm in a fresh
 folder — **WORKS, 65 s**: three files, build, one failed probe, one edit, answered. The bare
 model passed task 1 once. Thursday's RAW stood 0 of 3 on a folder its own task 1 had

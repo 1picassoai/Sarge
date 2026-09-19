@@ -64,7 +64,7 @@ def repo_root(start: Path) -> Path:
 class NotChecked(Exception):
     """The file was NOT judged, and the reason. Never a pass.
 
-    Galahad, 18 Sep, NOT SIGNED: every failure path here used to return "ok" with an
+    The release review, 18 Sep, refused to sign: every failure path here used to return "ok" with an
     explanatory string that nothing printed - a stranger with SARGE_HOME wrong saw a clean
     run forever. A guard that cannot check must say so where Claude can read it."""
 

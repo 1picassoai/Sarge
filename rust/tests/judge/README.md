@@ -44,7 +44,7 @@ its own `right` example.
 
 ## Replay result, 18 Sep evening — the books now ship with the fixtures
 
-Galahad, at the gate (NOT SIGNED, 21:11): the replay pointed at two repos' books on one
+The release review, at the gate (refused, 21:11): the replay pointed at two repos' books on one
 machine, both since deleted, so nobody could re-run it. Now `csharp.sarge` (reconstructed
 from `docs/SARGE-SYNTAX.md`; the original `myshop` book is gone) and `node.sarge` (the
 original Node book) sit beside the fixtures, `replay-check.cmd` reads them, and

@@ -113,7 +113,7 @@ Picasso. **Wrong way round.**
 ChatHistoryProvider = new SqliteChatHistoryProvider("./picasso.db").WithSarge(".sarge")
 ```
 
-Version bump, tag, Galahad stamps, or it does not go out — the release law is unchanged.
+Version bump, tag, an independent reviewer signs, or it does not go out — the release law is unchanged.
 
 ## What is measured before it is claimed
 
