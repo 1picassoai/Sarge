@@ -2,6 +2,10 @@
 
 **Drills it until it sticks. Doesn't negotiate.**
 
+![The test web UI showing the agent coding in real time when presented with a coding challenge](docs/console.png)
+
+*The test web UI showing the agent coding in real time when presented with a coding challenge: the task, the run, the rules held, the one rule the tutor added.*
+
 ## Why I built this
 
 I wrote the rules of my codebase down for my coding agent. It read them, agreed with
