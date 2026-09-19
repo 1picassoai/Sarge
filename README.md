@@ -40,10 +40,11 @@ refuses while a rule is broken.** Corrections that survive.
 
 ## Install, in one line
 
-Clone this repo, download the prebuilt organ from the
-[release](../../releases/tag/v0.1.0) and one model file (`Qwen3-4B-Instruct-2507-Q4_K_M.gguf`),
-then `pip install -e python` from the clone. Not on PyPI, by design: the clone is the
-install. The whole walk from a clean machine, every command verified:
+Clone the release, not the tip: `git clone --branch v0.1.0 https://github.com/1picassoai/Sarge.git`.
+Download the prebuilt organ from the [release](../../releases/tag/v0.1.0) and one model file
+(`Qwen3-4B-Instruct-2507-Q4_K_M.gguf`), then `pip install -e python` from the clone. Not on
+PyPI, by design: the clone is the install. `main` is the next version being built in public
+and is not signed; the tag is. The whole walk from a clean machine, every command verified:
 **`docs/GUIDE-LANGCHAIN.md`**.
 
 ```
