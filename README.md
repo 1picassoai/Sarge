@@ -23,16 +23,7 @@ refuses while a rule is broken.** Corrections that survive.
 
 ## What it is
 
-```
-you ──task──▶ the harness ──▶ the model (local, on your GPU)
-                 │                │ writes a file
-                 │◀── the check ──┘  your local model judges the file against the book. No regex.
-                 │  a hit? the app will not run until it is fixed
-                 │  the same failure twice? the tutor is asked, on the model's behalf
-                 │  green and answering? the tutor reviews once, and writes what it learned
-                 ▼
-            <your repo>\.sarge   — the book. Git-ignored. Grows from your own corrections.
-```
+![Sarge architecture: your agent hands a task to the harness; the local model writes a file; the check judges it against the book; a hit stops the run; the tutor is the one thing that leaves your machine](docs/architecture.png)
 
 - **The organ** — llama.cpp with Sarge compiled in. The universal laws sit at the root of
   every prompt. Prebuilt on the [release page](../../releases/tag/v0.1.0), or build it:
