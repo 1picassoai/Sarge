@@ -70,3 +70,32 @@ the loaded model, and the number moves with the wording of the book and the mode
 reads it.** The 7-of-7 measured on 18 Sep morning was against the `myshop` book, which no
 longer exists; it cannot be re-run and is not claimed. Run this yourself; read the number
 you get.
+
+## Replay result, 19 Sep afternoon — smaller judges, and a fault the blank answer hid
+
+The question was whether the check could run on a smaller model than the 4B, so that a laptop
+without an 8 GB card could judge. Same fixtures, same books, the organ swapped for
+`Qwen3-1.7B-Q4_K_M` and then `Qwen3-0.6B-Q4_K_M`, same flags.
+
+| judge | faults caught | false flags | note |
+|---|---|---|---|
+| Qwen3-4B-Instruct-2507 (shipped) | 6 of 7 | 1 | unchanged before and after the fix below |
+| Qwen3-1.7B | **0 of 7** | 0 | answers `NONE` to every file, first pass, deterministic across three runs on a fresh organ |
+| Qwen3-0.6B | **0 of 7** | 0 | same |
+
+**The fault the run exposed first:** both small models are *thinking* models. The check's
+request never turned thinking off, so they spent the whole answer budget inside `<think>` and
+returned an empty string, and the check read an empty string as `NONE` and passed the file.
+Fixed in `verdict.rs`: the request now sends `chat_template_kwargs.enable_thinking = false`
+(a non-thinking model ignores it; the 4B's numbers did not move), and **an empty answer is an
+error, not a pass** (`CHECKS INCOMPLETE`). A judge that says nothing has not judged.
+
+**The finding once they could speak:** they still catch nothing. With thinking off both models
+answer `NONE` on every fixture, including the `EnsureDeleted()` drop and the `await` on a
+synchronous call that the 4B names at the right line. So the earlier note stands and hardens:
+**the judge is the loaded model, and at this prompt the 4B is the floor.** The route to a
+machine without an NVIDIA card is a Metal or CPU build of the same 4B, not a smaller model.
+
+One caution from the day: two scripts that both swap the organ on :8421 were run at once,
+and one traced "hit" from the small model turned out to be the 4B answering mid-swap. Swap
+the organ from one place, sequentially, or the trace lies.

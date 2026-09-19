@@ -57,13 +57,23 @@ fn ask_organ_n(prompt: &str, n_predict: u32) -> Result<String, String> {
                 { "role": "system", "content": system.trim() },
                 { "role": "user", "content": user.trim() }
             ],
-            "max_tokens": n_predict, "temperature": 0, "cache_prompt": true
+            "max_tokens": n_predict, "temperature": 0, "cache_prompt": true,
+            // A thinking model (Qwen3-1.7B, 0.6B) spends the whole budget on <think> and
+            // answers nothing, so the check read a blank as NONE and caught 0 of 7 (19 Sep).
+            // llama-server passes this through to the chat template; a non-thinking model
+            // ignores it. The judge must speak, not think.
+            "chat_template_kwargs": { "enable_thinking": false }
         }))
         .map_err(|e| format!("organ not reachable at {ORGAN}: {e}"))?
         .into_json()
         .map_err(|e| e.to_string())?;
     let answer = resp["choices"][0]["message"]["content"].as_str().map(|s| s.to_string())
         .ok_or_else(|| "empty answer from the organ".to_string())?;
+    // A blank answer is not NONE. A judge that said nothing has not judged; say so
+    // loudly (CHECKS INCOMPLETE) rather than pass the file (the 0-of-7 of 19 Sep).
+    if answer.trim().is_empty() {
+        return Err("the organ answered nothing - a judge that says nothing has not judged".to_string());
+    }
     // SARGE_TRACE=1 shows what the organ was asked and what it said - the only way to
     // tell a student that cannot judge from a prompt it cannot read (DeepSeek, 17 Sep).
     if std::env::var_os("SARGE_TRACE").is_some() {
