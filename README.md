@@ -2,29 +2,27 @@
 
 **Drills it until it sticks. Doesn't negotiate.**
 
-**Corrections that survive.** A small local model writes your code. When it breaks a rule
-of your codebase, a frontier tutor teaches it that rule — once, from its own mistake — and
-writes it into a book that lives with the repo. From then on the rule rides at the tail
-of every turn, every file the model writes is checked against it, and **the run refuses
-while a rule is broken.** Not a promise that a rule binds; a loop that learns a rule from
-the model's own failure and makes breaking it cost the run.
+## Why I built this
 
-**What leaves your machine, exactly.** The model runs on your GPU. The check runs on your
-GPU. The tutor is a frontier model, and when it is called it receives the error text, the
-model's own file around the line the error names, and, at the end of a green task, the
-files the model wrote. That is code, and it leaves. It never receives the rest of your
-repository. If you never let the tutor run, nothing leaves at all. The Claude Code hook
-has no tutor: nothing leaves, full stop.
+I wrote the rules of my codebase down for my coding agent. It read them, agreed with
+them, and then shipped code that broke them anyway. Sometimes it did not even compile.
+So I reviewed everything it wrote, every time, which meant I was paying twice: once in
+tokens for code I could not trust, and once in my own hours to find out why. The rules
+file was not the problem. The problem was that nothing made the agent *keep* a rule
+after it had read it.
 
-You wrote a `CLAUDE.md` or an `AGENTS.md` and watched it get ignored. That effort was the
-right idea. This is the second half of it.
+Sarge is what I built to stop that. A small model runs on my own GPU and writes the code.
+When it breaks a rule, a tutor teaches it that rule once, from its own mistake, and
+writes it into a book that lives with the repo. From then on the rule is put in front of
+the model on every turn, every file it writes is checked against the book, and **the run
+refuses while a rule is broken.** Corrections that survive.
 
-## What it is, in one screen
+## What it is
 
 ```
 you ──task──▶ the harness ──▶ the model (local, on your GPU)
                  │                │ writes a file
-                 │◀── the check ──┘  the organ judges the file against the book: no regex
+                 │◀── the check ──┘  your local model judges the file against the book. No regex.
                  │  a hit? the app will not run until it is fixed
                  │  the same failure twice? the tutor is asked, on the model's behalf
                  │  green and answering? the tutor reviews once, and writes what it learned
@@ -32,46 +30,33 @@ you ──task──▶ the harness ──▶ the model (local, on your GPU)
             <your repo>\.sarge   — the book. Git-ignored. Grows from your own corrections.
 ```
 
-- **The organ** — llama.cpp with Sarge compiled in. The universal laws are in the binary,
-  at the root of every prompt. `organ/README.md` builds it.
+- **The organ** — llama.cpp with Sarge compiled in. The universal laws sit at the root of
+  every prompt. Prebuilt on the [release page](../../releases/tag/v0.1.0), or build it:
+  `organ/README.md`.
 - **The book** — `.sarge` at your repo's root, in the Sarge language: `do` · `never` ·
   `wrong |` · `right |` · `allow` · `since`. Every rule carries the wrong line and the right
-  line as code. A rule without a demonstration is advice; the check enforces only the ones
-  with one. `docs/SARGE-SYNTAX.md`.
+  line as code; the check enforces only rules that have them. `docs/SARGE-SYNTAX.md`.
 - **The harness** — the tools the model gets and the floors under it: the check after every
-  write, the refusal, the forced ask, the four-strike stop. A Python package for LangChain,
-  `python/sarge`. One import, one line, in your own LangGraph agent.
+  write, the refusal, the forced ask, the four-strike stop. A Python package for LangChain.
 - **The tutor** — Claude, called rarely: on a repeated failure, and once at the end of a
-  green task. It sees the error, the model's own file around the line, and at the end the
-  files the model wrote. Never the rest of your repo. This is the one thing that leaves.
-- **The page** — `console.cmd`, a task box and a Run button. It holds no logic.
+  green task. **This is the one thing that leaves your machine:** it receives the error,
+  the model's own file around the line, and at the end the files the model wrote. Never
+  the rest of your repo. No tutor key, nothing leaves.
 
-## Works with
+## Install, in one line
 
-- **LangChain / LangGraph** — `python/sarge`, the whole loop as a package. Tested; the
-  series and the step log are in `docs/`. **Step by step, from a clean machine:
-  `docs/GUIDE-LANGCHAIN.md`.**
-- **Claude Code** — `hooks/`, the check as a hook: every file Claude Code writes is judged
-  by your local model against your `.sarge`, a hit comes back as the tool's own feedback,
-  and the app will not run while it stands. No key, no network. Tested by hand
-  (`hooks/README.md`).
-- **CrewAI, Cursor** — next. Not in this release, so not claimed.
-
-## Start
+Clone this repo, download the prebuilt organ from the
+[release](../../releases/tag/v0.1.0) and one model file (`Qwen3-4B-Instruct-2507-Q4_K_M.gguf`),
+then `pip install -e python` from the clone. Not on PyPI, by design: the clone is the
+install. The whole walk from a clean machine, every command verified:
+**`docs/GUIDE-LANGCHAIN.md`**.
 
 ```
-organ\llama-src\organ.cmd     the model on :8421      (prebuilt on the release page, or build it: organ\README.md)
-console.cmd                   the page on :8420
+organ\llama-src\organ.cmd     the model on :8421
+console.cmd                   the page on :8420 — a folder, a task, Run
 ```
 
-**Installing, in one line:** clone this repo, download the prebuilt organ from the
-[release](../../releases/tag/v0.1.0) and one model file, `pip install -e python`. The
-whole path from a clean machine is `docs/GUIDE-LANGCHAIN.md`.
-
-Then, on the page: a folder, a task in plain words, arm **HARNESS**, Run.
-`STRANGER.md` is day one in four steps.
-
-Use it from your own LangGraph agent instead:
+Or from your own LangGraph agent:
 
 ```python
 from sarge import Sarge
@@ -79,36 +64,33 @@ agent = Sarge(repo=".", task=task).agent()
 agent.invoke({"messages": [("user", task)]})
 ```
 
-`python/README.md` has the pieces if you keep your own graph.
+## Works with
+
+- **LangChain / LangGraph** — `python/sarge`. Tested; `docs/GUIDE-LANGCHAIN.md`.
+- **Claude Code** — `hooks/`: every file Claude Code writes is judged against your `.sarge`
+  by your local model, a hit comes back as the tool's own feedback, and the app will not
+  run while it stands. No key, no network. `hooks/README.md`.
+- CrewAI, Cursor: next. Not in this release, so not claimed.
 
 ## What is measured, honestly
 
-Every claim below has a file behind it. No number here is for anything but reading.
+Every claim has a file behind it. No number here is for anything but reading.
 
-- **A series of tasks on one .NET repo, seven of seven,** each verified by hand with curl,
-  the book growing as it went. Every failure on the way written down with its cause, most
-  of them ours. `docs/SERIES-160926.md`.
-- **The same seven on Node, harness on, seven of seven by hand.** The bare model on the
-  same tasks: none — it wrote a broken config in task one and never opened it again.
-  `docs/SERIES-NODE.md`.
+- **Seven tasks on one Node repo, harness on, seven of seven correct by hand,** the book
+  growing as it went. The bare model on the same tasks: none. Every failure on the way is
+  written down with its cause, most of them ours. `docs/SERIES-NODE.md`.
 - **Where a rule sits decides whether it holds.** Text at the tail of the turn held every
-  handler across four runs; cached K/V did not, and the claim that it did was withdrawn
-  the morning it failed to repeat. `docs/KV-POINTING.md`.
-- **The check: six of seven known faults caught at the right line, with one false flag,**
-  on the replay that ships in `rust/tests/judge/` and runs from the clone
-  (`rust\replay-check.cmd`). It is the loaded model judging a line against the rule's
-  examples — so it is only as good as that model, the number moves with the wording of
-  the book, and it once passed a hard-coded filename because the example was written
-  differently. Add a `wrong |` line; that is how it learns. Run the replay yourself and
-  read the number you get. `docs/CHECK-DESIGN.md`, `rust/tests/judge/README.md`.
-- **What the tutor's first question is:** *what can this code destroy?* It caught a line
-  that drops the database on every start, in Development, that a green run had passed.
-  `docs/THE-BIBLE.md`, Part Seven.
+  time; cached K/V did not, and the claim that it did was withdrawn the morning it failed
+  to repeat. `docs/KV-POINTING.md`.
+- **The check, on the replay that ships with the tree:** six of seven known faults caught
+  at the right line, one false flag. It is your local model judging a line, so it is only
+  as good as that model; add a `wrong |` line when it misses, an `allow` when it flags
+  something right. `rust/tests/judge/README.md`.
+- **The tutor's first question is *what can this code destroy?*** It caught a line that
+  drops the database on every start, in Development, that a green run had passed.
 
-**Not measured yet, so not claimed:** that a rule survives compaction across a long
-multi-turn agent (the test is written, `python/experiments/compaction.py`; the first run
-showed the loss and voided its own control arm); any model but Qwen3-4B on one 8 GB card;
-any hardware but that card.
+**Not measured, so not claimed:** that a rule survives compaction in a long multi-turn
+agent; any model but Qwen3-4B on one 8 GB card; any hardware but that card.
 
 ## Layout
 
@@ -120,18 +102,13 @@ hooks/          the check as a Claude Code hook                              (ho
 harness/        CHARACTER.md (who the model is) · VETTED.md (the compiled core)
 book/           universal.sarge — the laws loaded under every repo's book
 tools/          console.py — the page
-docs/           the bible, the language, every experiment and its result, and GUIDE-STEPS.md
-                (the .NET series and the Agent Framework steps in there are history: that host is parked)
+docs/           every experiment and its result, including the withdrawn ones
 ```
 
 ## Laws
 
-Nothing leaves the machine but what the tutor is handed, and the README says exactly what
-that is. No regex in rules. Never complicate the code — attack the
-design. A proof's success is a finding, not a feature. A withdrawn claim is written down
-next to the claim.
+Nothing leaves the machine but what the tutor is handed, and this file says exactly what
+that is. No regex in rules. Never complicate the code — attack the design. A proof's
+success is a finding, not a feature. A withdrawn claim is written down next to the claim.
 
-## Name
-
-CompilerGPT for four days; that name belongs to Lawrence Livermore National Laboratory's
-compiler project. Sarge since 16 September 2026. MIT.
+MIT. Bring what your coding agent keeps getting wrong: [Discussions](../../discussions).
