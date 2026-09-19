@@ -208,7 +208,7 @@ Every result we publish was checked this way. Do the same before you believe a v
 | `BUILD REFUSED: the work VPN is up, ... npm install` | same law, for packages | same |
 | `STUCK: the same failure has come back 4 times - RUN CANCELLED` | the model looped; the four-strike stop ended it | read the log; the tutor's answers are in it; give a corrective task naming the fault |
 | `BLOCKED BY A RULE` on code you believe is right | a false flag | add an `allow` line to the rule — or, if its `wrong` line is ordinary correct code, strike the demonstration: process rules must not carry code examples |
-| `pip install sarge` gets an unrelated package | that PyPI name is someone else's | `pip install -e python` from the clone (we are `sarge-rules`) |
+| `pip install sarge` gets an unrelated package | that PyPI name is someone else's; Sarge is not on PyPI, by design | `pip install -e python` from the clone — the clone is the install |
 
 ## 11. What is measured, and what is not
 

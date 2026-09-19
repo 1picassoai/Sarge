@@ -8,7 +8,7 @@ thing that leaves: the error, the lines around it, and the files the model wrote
 the rest of your repo. No tutor key, nothing leaves.
 
 ```bash
-pip install -e python        # from your Sarge clone. (Not on PyPI yet; when it is, the package is `sarge-rules` — `sarge` there is someone else's.)
+pip install -e python        # from your Sarge clone. Not on PyPI, by design: the clone is the install (the organ and the binary live there too). `sarge` on PyPI is someone else's package.
 ```
 
 ```python
