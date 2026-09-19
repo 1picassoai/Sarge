@@ -1,0 +1,60 @@
+=== sarge ===
+
+rule use-config-for-connection
+  do     Always read database filenames and connection strings from configuration files or environment variables
+  never  Hardcode database filenames or connection strings in source code
+  wrong  | const db = new DatabaseSync(path.join(__dirname, 'tools.db'));
+  wrong  | const db = new DatabaseSync('./tools.db');
+  right  | const db = new DatabaseSync(path.join(__dirname, config.database));
+  since  2026-09-16 tutor · second wrong line 2026-09-18 merlin (the check passed the plain-string form)
+end
+
+rule no-await-on-sync-database
+  do     Use synchronous database methods without await when using DatabaseSync
+  never  Use await with synchronous methods from DatabaseSync
+  wrong  | const result = await db.prepare('SELECT id, name, price FROM tools WHERE id = ?').get(Number(id));
+  right  | const result = db.prepare('SELECT id, name, price FROM tools WHERE id = ?').get(Number(id));
+  since  2026-09-16 tutor
+end
+
+rule sync-db-no-await
+  do     call DatabaseSync prepare/run/get/all methods directly without await since they execute synchronously
+  never  wrap synchronous DatabaseSync calls in async functions or precede them with await
+  wrong  | const result = await db.prepare('SELECT id, name, price FROM tools').all();
+  right  | const result = db.prepare('SELECT id, name, price FROM tools').all();
+  since  2026-09-16 tutor
+end
+
+rule no-duplicate-route-definitions
+  do     define each route path+method exactly once, all route registrations before app.listen
+  never  redefine the same route handler again later in the file or after app.listen is called
+  wrong  | app.put('/tools/:id', (req, res) => { /* second copy, defined after app.listen */ })
+  right  | app.put('/tools/:id', (req, res) => { /* single definition, above app.listen */ })
+  since  2026-09-17 tutor
+end
+
+rule confirm-row-affected-before-success
+  do     check the affected-row count (or re-select) after a write and return 404 if nothing matched
+  never  assume a write succeeded on a target row without checking that it actually matched one
+  wrong  | db.prepare(`UPDATE tools SET is_archived = TRUE WHERE id = ?`).run(Number(id)); res.status(204).send();
+  right  | const r = db.prepare(`UPDATE tools SET is_archived = 1 WHERE id = ? AND NOT is_archived`).run(Number(id)); if (r.changes === 0) return res.status(404).json({ error: 'Tool not found' }); res.status(204).send();
+  since  2026-09-17 tutor
+end
+
+rule fetch-real-data-not-fixtures
+  do     render UI state from the actual endpoint response via fetch/useEffect
+  never  hardcode sample rows in a component that is supposed to display server data
+  wrong  | <td>Hammer</td><td>$9.50</td>
+  right  | {tools.map(t => <tr key={t.id}><td>{t.name}</td><td>{t.price}</td></tr>)}
+  since  2026-09-17 tutor
+end
+
+rule check-write-result-before-204
+  do     read the affected-row count (or re-select the row) after a write and return 404 when nothing matched
+  never  send a success status for a write without confirming a row was actually affected
+  wrong  | db.prepare(`UPDATE tools SET is_archived = TRUE WHERE id = ?`).run(Number(id)); res.status(204).send();
+  right  | const r = db.prepare(`UPDATE tools SET is_archived = TRUE WHERE id = ?`).run(Number(id)); if (r.changes === 0) return res.status(404).json({ error: 'Tool not found' }); res.status(204).send();
+  since  2026-09-17 tutor
+end
+
+=== end sarge ===

@@ -1,0 +1,15 @@
+{{ bos_token }}{%- for message in messages -%}
+{%- if message['role'] == 'system' -%}
+{{ message['content'] }}
+{% elif message['role'] == 'user' -%}
+### Instruction:
+{{ message['content'] }}
+{% else -%}
+### Response:
+{{ message['content'] }}
+<|EOT|>
+{% endif -%}
+{%- endfor -%}
+{%- if add_generation_prompt -%}
+### Response:
+{% endif -%}

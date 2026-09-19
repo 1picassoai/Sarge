@@ -1,0 +1,20 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit|MultiEdit",
+        "hooks": [
+          { "type": "command", "command": "python \"%SARGE_HOME%\\hooks\\sarge_check.py\"" }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          { "type": "command", "command": "python \"%SARGE_HOME%\\hooks\\sarge_check.py\"" }
+        ]
+      }
+    ]
+  }
+}

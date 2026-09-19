@@ -1,0 +1,24 @@
+=== sarge ===
+
+rule scoped-context-in-handler
+  do     take the DbContext as a handler parameter so it is injected per request, and await its async methods
+  never  create or resolve the DbContext inside a handler
+  wrong  | app.MapGet("/tools", () => { using var context = new ToolContext(new DbContextOptionsBuilder<ToolContext>().UseSqlite(cs).Options); return context.Tools.ToList(); });
+  wrong  | app.MapGet("/tools", () => { var context = app.Services.GetRequiredService<ToolContext>(); return context.Tools.ToList(); });
+  wrong  | app.MapPost("/tools", (Tool tool) => { using var context = app.Services.GetRequiredService<ToolContext>(); context.Tools.Add(tool); });
+  right  | app.MapGet("/tools", async (ToolContext db) => await db.Tools.ToListAsync());
+  right  | using (var scope = app.Services.CreateScope()) { var db = scope.ServiceProvider.GetRequiredService<ToolContext>(); db.Database.EnsureCreated(); }
+  allow  resolving inside an explicit scope created with app.Services.CreateScope() at startup, which is how the database is created
+  since  2026-09-15 tutor · reconstructed for the replay 2026-09-18 merlin (the myshop book it was learned in is gone; docs/SARGE-SYNTAX.md holds the text)
+end
+
+rule no-addcontrollers-in-minimal-api
+  do     map endpoints with app.MapGet, app.MapPost, app.MapPut, app.MapDelete
+  never  call AddControllers or MapControllers in a minimal API
+  wrong  | builder.Services.AddControllers();
+  right  | app.MapGet("/tools", async (ToolContext db) => ...);
+  allow  a project that uses MVC controllers
+  since  2026-09-16 tutor · reconstructed for the replay 2026-09-18 merlin
+end
+
+=== end sarge ===

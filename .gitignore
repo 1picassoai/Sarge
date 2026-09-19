@@ -1,0 +1,30 @@
+# The organ: a llama.cpp clone with its CUDA build tree. Gigabytes, and its own git.
+organ/llama-src/
+
+# Build output
+agent/**/bin/
+agent/**/obj/
+rust/target/
+python/.venv/
+python/**/__pycache__/
+python/*.egg-info/
+python/build/
+book/shopfloor/bin/
+book/shopfloor/obj/
+book/shopfloor/*.db
+
+# Run logs and experiment output are evidence, kept locally, not history
+runs/
+
+# Saved model state and vectors: binary, big, rebuildable
+harness/*.kv
+harness/cache/
+*.gguf
+*.vec
+
+# The shopfloor sample is a git repo of its own and 36MB of bins - not part of Sarge
+book/shopfloor/
+
+# Secrets never
+*.env
+appsettings.*.json

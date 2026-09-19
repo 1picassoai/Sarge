@@ -1,0 +1,112 @@
+﻿diff --git a/tools/server/CMakeLists.txt b/tools/server/CMakeLists.txt
+index 02607c8..efc63f4 100644
+--- a/tools/server/CMakeLists.txt
++++ b/tools/server/CMakeLists.txt
+@@ -41,6 +41,21 @@ target_include_directories(${TARGET} PRIVATE ../mtmd)
+ target_include_directories(${TARGET} PRIVATE ${CMAKE_SOURCE_DIR})
+ target_link_libraries(${TARGET} PUBLIC llama-common mtmd ${CMAKE_THREAD_LIBS_INIT})
+ 
++# CompilerGPT: the handshake, compiled in. A Rust static library exposing four C
++# functions (see handshake.h). Point HANDSHAKE_LIB at the built .lib; when unset the
++# server builds stock and --handshake-vetted is simply absent from the seeded slots.
++if (DEFINED HANDSHAKE_LIB AND EXISTS "${HANDSHAKE_LIB}")
++    target_link_libraries(${TARGET} PUBLIC "${HANDSHAKE_LIB}")
++    if (WIN32)
++        # Rust's std pulls these in; MSVC will not find them on its own.
++        target_link_libraries(${TARGET} PUBLIC ws2_32 userenv bcrypt ntdll advapi32)
++    endif()
++    target_compile_definitions(${TARGET} PRIVATE COMPILERGPT_HANDSHAKE=1)
++    message(STATUS "CompilerGPT handshake linked: ${HANDSHAKE_LIB}")
++else()
++    message(WARNING "CompilerGPT: HANDSHAKE_LIB not set or not found - server builds without the handshake")
++endif()
++
+ if (LLAMA_SERVER_PCH)
+     target_precompile_headers(${TARGET} PRIVATE ${CMAKE_SOURCE_DIR}/common/common.h)
+ endif()
+diff --git a/tools/server/server-context.cpp b/tools/server/server-context.cpp
+index b6835e4..b09ce8c 100644
+--- a/tools/server/server-context.cpp
++++ b/tools/server/server-context.cpp
+@@ -1,4 +1,5 @@
+ #include "server-context.h"
++#include "handshake.h"
+ #include "server-chat.h"
+ #include "server-common.h"
+ #include "server-http.h"
+@@ -878,6 +879,16 @@ private:
+ 
+     common_params params_base;
+ 
++    // CompilerGPT: content hash of VETTED.md at the moment the slots were seeded. The
++    // delta watch compares against it - if the file moves, the prefilled state is
++    // stale and the model is grounded in rules that no longer exist.
++    uint64_t handshake_digest_seen = 0;
++
++    // The INJECT rules, tokenized once. Prepended to every prompt the server takes,
++    // so the prefix is identical across requests and the slot's own prompt cache
++    // carries it: decoded on a slot's first request, reused on every one after.
++    llama_tokens handshake_prefix;
++
+     // note: keep these alive - they determine the lifetime of the model, context, etc.
+     common_init_result_ptr llama_init;
+ 
+@@ -1284,6 +1295,32 @@ private:
+             return false;
+         }
+ 
++        // ── HANDSHAKE: the root ──────────────────────────────────────────────────
++        // CompilerGPT. Core and costume. The core - the vetted rules - is compiled
++        // into the Rust handshake, which is compiled into this server. No flag, no
++        // file: it is in the binary. Here it is tokenized once and put at the front of
++        // every prompt this server takes, inside the server, so agents on the OpenAI
++        // endpoint never see or send it. The costume is whatever they send. Because
++        // the prefix is byte-identical on every request, the slot prompt cache does the
++        // rest: decoded once per slot, reused after.
++#ifdef COMPILERGPT_HANDSHAKE
++        {
++            const int n_rules = handshake_core_count();
++            char * block = handshake_core();
++            std::string text = block ? block : "";
++            handshake_free(block);
++
++            if (n_rules > 0 && !text.empty()) {
++                handshake_prefix = common_tokenize(ctx_tgt, text, /*add_special*/ false, /*parse_special*/ true);
++                handshake_digest_seen = handshake_core_digest();
++                SRV_INF("handshake: core compiled in - %d INJECT rule(s), %zu tokens, digest %016llx, at the root of every prompt\n",
++                        n_rules, handshake_prefix.size(), (unsigned long long) handshake_digest_seen);
++            } else {
++                SRV_WRN("handshake: build carries no core (%d rules) - starting with nothing in the blood\n", n_rules);
++            }
++        }
++#endif
++
+         for (int i = 0; i < params_base.n_parallel; i++) {
+             server_slot & slot = slots[i];
+ 
+@@ -1722,6 +1759,25 @@ private:
+             slot.lora = params_base.lora_adapters;
+         }
+ 
++        // CompilerGPT: put the handshake at the root of this prompt. After BOS if the
++        // template emitted one, else at position 0. Text prompts only - a multimodal
++        // prompt keeps its chunk layout and goes through untouched.
++        if (!handshake_prefix.empty() && mctx == nullptr) {
++            const llama_tokens & in = task.tokens.get_tokens();
++            llama_tokens out;
++            out.reserve(in.size() + handshake_prefix.size());
++            size_t head = 0;
++            if (!in.empty() && llama_vocab_get_add_bos(vocab) && in[0] == llama_vocab_bos(vocab)) {
++                out.push_back(in[0]);
++                head = 1;
++            }
++            out.insert(out.end(), handshake_prefix.begin(), handshake_prefix.end());
++            out.insert(out.end(), in.begin() + head, in.end());
++            task.tokens = server_tokens(out, false);
++            SLT_INF(slot, "handshake: %zu rule tokens at the root, prompt now %zu tokens\n",
++                    handshake_prefix.size(), task.tokens.size());
++        }
++
+         // if using alora, make sure it's only a single one requested and active
+         size_t alora_invocation_start = task.tokens.size();
+         if (lora_all_alora(slot.lora)) {

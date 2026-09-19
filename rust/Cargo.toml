@@ -1,0 +1,57 @@
+[package]
+name = "handshake"
+version = "0.1.0"
+edition = "2021"
+description = "The layer between a codebase's rules and a small model's reading habits."
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+regex = "1"
+glob = "0.3"
+llama-cpp-2 = { version = "0.1.156", optional = true }
+encoding_rs = { version = "0.8", optional = true }
+# The one call that leaves the box: the tutor. HTTPS to the frontier, nothing else.
+ureq = { version = "2", features = ["json"] }
+
+# The model is behind a feature so the library, its tests and the CLI stay buildable
+# on a machine with no LLVM. Only `compile` needs llama.cpp.
+[features]
+default = []
+# The model always runs on the GPU. CPU inference for an 8B is not a deployment, so
+# there is no CPU path and no flag to choose between them. Needs the CUDA toolkit at
+# build time - 13.4+, because 12.0 has no MSBuild integration for Visual Studio 18
+# and CMake reports "No CUDA toolset found".
+model = ["dep:llama-cpp-2", "dep:encoding_rs", "llama-cpp-2/cuda"]
+
+[lib]
+name = "handshake"
+path = "src/lib.rs"
+# rlib for the Rust binaries; staticlib so llama-server's C++ can link the handshake
+# in directly. The organ is one process: llama.cpp + handshake compiled together.
+crate-type = ["rlib", "staticlib"]
+
+[[bin]]
+name = "handshake"
+path = "src/main.rs"
+
+# The whole point: rules and the model in one process, no HTTP.
+[[bin]]
+name = "compile"
+path = "src/bin/compile.rs"
+required-features = ["model"]
+
+# The KV cache POC: prefill the vetted rules once, save the state, load it on every
+# later run. Pays for the rules at boot instead of on every turn.
+[[bin]]
+name = "kv"
+path = "src/bin/kv.rs"
+required-features = ["model"]
+
+# POINTING. The attention experiment: the same rule placed at the head of the prompt,
+# at the tail, or re-attached as a cached KV block right before the write. Which
+# position the model actually attends to. Design in docs/KV-POINTING.md.
+[[bin]]
+name = "point"
+path = "src/bin/point.rs"
+required-features = ["model"]

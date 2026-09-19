@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sarge-rules"
+version = "0.1.0"
+# The distribution name is sarge-rules (the Captain, 19 Sep; `sarge` on PyPI is someone
+# else's, for good). The import stays `from sarge import Sarge`. Nothing is published yet.
+description = "Sarge for LangChain: a local model writes the code, the rules of your codebase ride at the tail of every turn, every written file is checked against them, and the run refuses while a rule is broken. Local model, local check; only the tutor call leaves, and only what the model wrote."
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.10"
+dependencies = [
+  "langchain>=1.0",
+  "langgraph>=1.0",
+  "langchain-openai>=1.0",
+]
+
+[project.scripts]
+sarge = "sarge.__main__:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["sarge*"]

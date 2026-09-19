@@ -1,0 +1,31 @@
+=== sarge ===
+
+rule config-not-code
+  do     Read connection strings and secrets from configuration or environment
+  never  Write a connection string, key, password or secret into source code
+  wrong  | options.UseSqlite("Data Source=tools.db");
+  wrong  | const db = new DatabaseSync('tools.db');
+  wrong  | const apiKey = "sk-live-4f9a...";
+  right  | options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection"));
+  right  | const db = new DatabaseSync(config.database);
+  since  2026-09-17 merlin
+end
+
+rule archive-not-delete
+  do     Mark it archived and hide it from reads
+  never  Hard-delete a row or record, or drop or recreate a database that holds data
+  wrong  | db.Customers.Remove(customer);
+  wrong  | context.Database.EnsureDeleted();
+  wrong  | DELETE FROM tools WHERE id = ?
+  right  | customer.IsArchived = true; await db.SaveChangesAsync();
+  right  | UPDATE tools SET is_archived = 1 WHERE id = ?
+  allow  CREATE TABLE IF NOT EXISTS, and EnsureCreated() on its own - creating a schema that is missing is not deleting; EnsureDeleted() is never allowed
+  since  2026-09-17 merlin · allow line 2026-09-18 (Galahad's replay: EnsureCreated alone was judged as "recreate")
+end
+
+rule explicit-columns
+  do     Name the fields a query needs
+  never  Select every column when the caller needs a few
+end
+
+=== end sarge ===
