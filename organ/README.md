@@ -7,7 +7,14 @@ and never see the difference. Everything in the organ runs on your GPU; nothing 
 calls out. (The tutor, elsewhere in Sarge, is the one thing that does - the README says
 exactly what it is handed.)
 
-You build it once. It takes a while the first time (llama.cpp's CUDA kernels compile from
+**You do not have to build it to try Sarge.** The release page carries a prebuilt organ for
+Windows x64 with CUDA 13 (built for the RTX 4070's sm_89; other cards untested):
+`sarge-organ-win-x64-cuda13.zip` (the server with the handshake compiled in, its DLLs,
+`handshake.exe`, `organ.cmd`) and, if you do not have the CUDA 13.4 toolkit installed,
+`cudart-win-x64-cuda13.zip` (the three runtime DLLs) to unzip beside it. Drop in the model
+file, edit the path at the top of `organ.cmd`, run it. Then skip to "Start" below.
+
+Building it yourself takes a while the first time (llama.cpp's CUDA kernels compile from
 source); after that it is a binary you start with one command.
 
 ## What you need

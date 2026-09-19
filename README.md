@@ -60,9 +60,13 @@ you ──task──▶ the harness ──▶ the model (local, on your GPU)
 ## Start
 
 ```
-organ\llama-src\organ.cmd     the model on :8421      (build it first: organ\README.md)
+organ\llama-src\organ.cmd     the model on :8421      (prebuilt on the release page, or build it: organ\README.md)
 console.cmd                   the page on :8420
 ```
+
+**Installing, in one line:** clone this repo, download the prebuilt organ from the
+[release](../../releases/tag/v0.1.0) and one model file, `pip install -e python`. The
+whole path from a clean machine is `docs/GUIDE-LANGCHAIN.md`.
 
 Then, on the page: a folder, a task in plain words, arm **HARNESS**, Run.
 `STRANGER.md` is day one in four steps.
