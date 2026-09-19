@@ -49,7 +49,8 @@ you ──task──▶ the harness ──▶ the model (local, on your GPU)
 ## Works with
 
 - **LangChain / LangGraph** — `python/sarge`, the whole loop as a package. Tested; the
-  series and the step log are in `docs/`.
+  series and the step log are in `docs/`. **Step by step, from a clean machine:
+  `docs/GUIDE-LANGCHAIN.md`.**
 - **Claude Code** — `hooks/`, the check as a hook: every file Claude Code writes is judged
   by your local model against your `.sarge`, a hit comes back as the tool's own feedback,
   and the app will not run while it stands. No key, no network. Tested by hand
