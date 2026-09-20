@@ -68,9 +68,11 @@ for the CPU columns — no GPU layers at all:
 | checking one 2,250-token file | **~70 s** | **a few seconds** |
 
 **A GPU is optional, and on a CPU you will feel the check.** It makes one pass over the file
-with the whole book, then a short second look at each line it suspects — seven calls on the
-file measured here, about ten seconds each without a GPU. On a card the same check is seconds.
-Writing is slower still: roughly a minute per hundred lines on a CPU.
+with the whole book, then **two** short looks at each line it suspects — the line in its
+context, and the line on its own, which must agree before it counts as a hit. So the cost is
+one pass plus two calls per suspected line: seven calls on the file measured here, about ten
+seconds each without a GPU. On a card the same check is seconds. Writing is slower still:
+roughly a minute per hundred lines on a CPU.
 
 **So: it runs on a plain laptop, and it is comfortable on a card.**
 
