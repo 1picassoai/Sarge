@@ -59,15 +59,20 @@ Prefer to do it by hand? **[The long way, every command explained →](../../wik
 
 **8 GB RAM and 4 CPU cores.** A GPU makes it faster; it is not required.
 
-Measured on Qwen3-4B (Q4_K_M, the model Sarge ships with), same prompt on each:
+Measured on Qwen3-4B (Q4_K_M, the model Sarge ships with), on a quiet machine with
+`-ngl 0` — no GPU layers at all — median of three runs:
 
 | | 4 cores, no GPU | 8 cores, no GPU | 8 GB GPU |
 |---|---|---|---|
-| **writing code** | 11.6 tok/s | 13.7 tok/s | **72 tok/s** |
-| **reading a file to judge it** | 300 tok/s | 259 tok/s | 405 tok/s |
+| **writing code** | 11.4 tok/s | 15.2 tok/s | **72 tok/s** |
+| **judging a 2,250-token file** | **0.5 s** | 0.4 s | under 0.1 s |
 
-**Judging is fast everywhere** — it is nearly all reading, and a file comes back in about a
-second even with no GPU at all. **Writing is the slow half**: roughly a minute for a
-hundred-line file on a CPU, about six times quicker on a card.
+**Judging is fast everywhere.** A file comes back in about half a second with no GPU at all,
+because judging is reading plus a one-word answer. **Writing is the slow half**: roughly a
+minute per hundred lines on a CPU, about six times quicker on a card.
+
+*Honesty note: an earlier version of this table quoted a tokens-per-second figure for judging.
+It was measured on a thirty-token question where startup dominates, which made it meaningless.
+Wall-clock on a real file is what a user actually experiences, so that is what is quoted now.*
 
 MIT. Bring what your coding agent keeps getting wrong: [Discussions](../../discussions).

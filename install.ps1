@@ -278,6 +278,18 @@ Good "SARGE_HOME set"
 # ------------------------------------------------------------------ 7. prove it
 Step "proving it works"
 
+# Do not start a second organ. The release review, 20 Sep: four were left running on one
+# machine holding 10.8 GB between them, all fighting over :8421, and the winner changed
+# three times while it was being watched. A stranger who reruns this - which is exactly
+# what people do after a failure - would do the same to themselves.
+$already = $false
+try { $already = (Invoke-WebRequest -Uri "http://127.0.0.1:8421/health" -TimeoutSec 3 -UseBasicParsing).StatusCode -eq 200 } catch {}
+
+if ($already) {
+    Warn "an organ is already answering on :8421 - using it, not starting another"
+    Say  "if it is running a different model, stop it first and run this again"
+    $up = $true
+} else {
 $null = Start-Process -FilePath (Join-Path $here "start-organ.cmd") -WindowStyle Minimized -PassThru
 $up = $false
 $frames = @("|", "/", "-", "\")
@@ -287,6 +299,7 @@ for ($i = 0; $i -lt 240; $i++) {
     try { if ((Invoke-WebRequest -Uri "http://127.0.0.1:8421/health" -TimeoutSec 2 -UseBasicParsing).StatusCode -eq 200) { $up = $true; break } } catch {}
 }
 Write-Host ("`r" + (" " * 44) + "`r") -NoNewline
+}
 if (-not $up) { Stop-With "the organ did not answer on :8421 within four minutes.`n  Run start-organ.cmd yourself and read the window." }
 Good "organ answering on :8421"
 
