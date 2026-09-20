@@ -1,0 +1,244 @@
+# Sarge - one command.
+#
+#   irm https://raw.githubusercontent.com/1picassoai/Sarge/main/install.ps1 | iex
+#
+# What it does, in order, and nothing else:
+#   1. checks you have Python 3.10+ and enough disk
+#   2. clones the v0.1.0 tag into .\Sarge  (or uses the clone you are standing in)
+#   3. downloads the prebuilt organ from the GitHub release          ~46 MB
+#   4. downloads the CUDA runtime ONLY if you have an NVIDIA card   ~405 MB
+#   5. downloads the model from Hugging Face                        ~2.4 GB
+#   6. pip installs the Python harness into the clone
+#   7. writes start-organ.cmd and start-console.cmd with YOUR paths
+#   8. starts the organ and proves the check can catch a known-bad file
+#
+# Nothing is installed system-wide. Nothing leaves your machine. It asks nothing,
+# guesses nothing, and stops loudly on anything it cannot verify.
+
+$ErrorActionPreference = "Stop"
+$ProgressPreference    = "SilentlyContinue"   # much faster Invoke-WebRequest
+
+$TAG       = "v0.1.0"
+$REPO      = "https://github.com/1picassoai/Sarge"
+$MODEL     = "Qwen3-4B-Instruct-2507-Q4_K_M.gguf"
+$MODEL_URL = "https://huggingface.co/unsloth/Qwen3-4B-Instruct-2507-GGUF/resolve/main/$MODEL"
+$NEED_GB   = 4
+
+function Say      ($m) { Write-Host "  $m" }
+function Step     ($m) { Write-Host "`n== $m" -ForegroundColor Cyan }
+function Good     ($m) { Write-Host "  OK  $m" -ForegroundColor Green }
+function Warn     ($m) { Write-Host "  !   $m" -ForegroundColor Yellow }
+function Stop-With($m) { Write-Host "`nSTOPPED: $m`n" -ForegroundColor Red; exit 1 }
+
+function Get-File ($url, $dest, $what) {
+    if (Test-Path $dest) { Good "$what already here"; return }
+    Say "downloading $what ..."
+    $tmp = "$dest.part"
+    try   { Invoke-WebRequest -Uri $url -OutFile $tmp -UseBasicParsing }
+    catch { Stop-With "could not download $what`n  $url`n  $($_.Exception.Message)" }
+    Move-Item $tmp $dest -Force
+    Good ("{0}  ({1:N0} MB)" -f $what, ((Get-Item $dest).Length / 1MB))
+}
+
+Write-Host @"
+
+  SARGE - prompts negotiate, Sarge doesn't
+  about 2.4 GB to download, once. No GPU required.
+
+"@ -ForegroundColor White
+
+# ------------------------------------------------------------------ 1. the machine
+Step "checking the machine"
+
+if ($PSVersionTable.PSVersion.Major -lt 5) { Stop-With "PowerShell 5 or newer is needed." }
+
+$py = $null
+foreach ($c in @("python", "python3", "py")) {
+    try {
+        $v = & $c --version 2>&1
+        if ($v -match "Python (\d+)\.(\d+)" -and [int]$Matches[1] -ge 3 -and [int]$Matches[2] -ge 10) { $py = $c; break }
+    } catch {}
+}
+if (-not $py) { Stop-With "Python 3.10 or newer is needed and was not found on PATH.`n  https://www.python.org/downloads/" }
+Good "Python: $(& $py --version)"
+
+$drive = (Get-Location).Drive
+if ($drive -and $drive.Free) {
+    $freeGB = [math]::Round($drive.Free / 1GB, 1)
+    if ($freeGB -lt $NEED_GB) { Stop-With "$freeGB GB free on $($drive.Name): - about $NEED_GB GB is needed." }
+    Good "disk: $freeGB GB free"
+}
+
+# A GPU is optional. Sarge runs on CPU; the card only makes it faster.
+$hasGpu = $false
+try { $hasGpu = [bool](& nvidia-smi --query-gpu=name --format=csv,noheader 2>$null) } catch {}
+if ($hasGpu) { Good "NVIDIA GPU found - writing will be ~6x faster" }
+else         { Warn "no NVIDIA GPU - Sarge will run on CPU (judging stays fast; writing is slower)" }
+
+# ------------------------------------------------------------------ 2. the tree
+Step "the tree"
+
+$here = if ($PSScriptRoot) { $PSScriptRoot } else { (Get-Location).Path }
+if (-not (Test-Path (Join-Path $here "rust\replay-check.cmd"))) {
+    $here = Join-Path (Get-Location).Path "Sarge"
+    if (-not (Test-Path (Join-Path $here "rust\replay-check.cmd"))) {
+        try { $null = Get-Command git -ErrorAction Stop } catch { Stop-With "git is needed to fetch Sarge.`n  https://git-scm.com/downloads" }
+        Say "cloning $TAG into $here ..."
+        # git writes progress to stderr; with ErrorActionPreference=Stop that would abort
+        $old = $ErrorActionPreference; $ErrorActionPreference = "Continue"
+        & git clone --depth 1 --branch $TAG $REPO $here *>&1 | Out-Null
+        $ErrorActionPreference = $old
+        if (-not (Test-Path (Join-Path $here "rust\replay-check.cmd"))) { Stop-With "the clone did not produce a tree at $here" }
+        Good "cloned $TAG (the signed release; main is work in progress)"
+    } else { Good "using the clone at $here" }
+} else { Good "running inside the clone at $here" }
+
+$bin    = Join-Path $here "organ\build\bin\Release"
+$models = Join-Path $here "models"
+$rustd  = Join-Path $here "rust\target\release"
+New-Item -ItemType Directory -Force -Path $bin, $models, $rustd | Out-Null
+
+# ------------------------------------------------------------------ 3. the organ
+Step "the organ  (llama.cpp with Sarge compiled in)"
+
+$server = Join-Path $bin "llama-server.exe"
+if (Test-Path $server) { Good "organ already here" }
+else {
+    $zip = Join-Path $env:TEMP "sarge-organ.zip"
+    Get-File "$REPO/releases/download/$TAG/sarge-organ-win-x64-cuda13.zip" $zip "the organ (46 MB)"
+    Expand-Archive -Path $zip -DestinationPath $bin -Force
+    if (-not (Test-Path $server)) {
+        $f = Get-ChildItem $bin -Recurse -Filter "llama-server.exe" | Select-Object -First 1
+        if ($f) { Get-ChildItem $f.DirectoryName | Move-Item -Destination $bin -Force }
+    }
+    if (-not (Test-Path $server)) { Stop-With "llama-server.exe was not in the archive." }
+    Remove-Item $zip -Force -ErrorAction SilentlyContinue
+    Good "organ unpacked"
+}
+
+# the handshake ships inside the same archive; only build it if it is missing AND Rust is here
+$hs = Join-Path $rustd "handshake.exe"
+if (-not (Test-Path $hs)) {
+    if (Test-Path (Join-Path $bin "handshake.exe")) {
+        Copy-Item (Join-Path $bin "handshake.exe") $hs -Force
+        Good "handshake taken from the release"
+    } else {
+        try { $null = Get-Command cargo -ErrorAction Stop
+              Say "building the handshake with cargo (about two minutes) ..."
+              Push-Location (Join-Path $here "rust"); & cargo build --release 2>&1 | Out-Null; Pop-Location
+        } catch {}
+        if (-not (Test-Path $hs)) { Stop-With "no handshake.exe in the release archive and no Rust toolchain to build one.`n  Install Rust (https://rustup.rs) and run this again." }
+        Good "handshake built"
+    }
+} else { Good "handshake already here" }
+
+# CUDA runtime: only for people who have a card and no toolkit
+if ($hasGpu) {
+    $dll     = Get-ChildItem $bin -Filter "cudart64*.dll" -ErrorAction SilentlyContinue | Select-Object -First 1
+    $toolkit = Get-ChildItem "C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA" -Directory -ErrorAction SilentlyContinue |
+               Sort-Object Name -Descending | Select-Object -First 1
+    if     ($dll)     { Good "CUDA runtime already beside the organ" }
+    elseif ($toolkit) { Good "CUDA toolkit found: $($toolkit.Name)" }
+    else {
+        $zip = Join-Path $env:TEMP "cudart.zip"
+        Get-File "$REPO/releases/download/$TAG/cudart-win-x64-cuda13.zip" $zip "the CUDA runtime (405 MB, one time)"
+        Expand-Archive -Path $zip -DestinationPath $bin -Force
+        Remove-Item $zip -Force -ErrorAction SilentlyContinue
+        Good "CUDA runtime unpacked"
+    }
+}
+
+# ------------------------------------------------------------------ 4. the model
+Step "the model  (Qwen3-4B, 2.4 GB - the long part)"
+
+$modelPath = $null
+foreach ($c in @((Join-Path $models $MODEL), "C:\llama\models\$MODEL", "C:\llama-b9213\models\$MODEL")) {
+    if (Test-Path $c) { $modelPath = $c; break }
+}
+if ($modelPath) { Good "model already here: $modelPath" }
+else {
+    $modelPath = Join-Path $models $MODEL
+    Say "2.4 GB, and it only happens once"
+    Get-File $MODEL_URL $modelPath "the model"
+}
+
+# ------------------------------------------------------------------ 5. the harness
+Step "the Python harness"
+
+Push-Location $here
+& $py -m pip install --disable-pip-version-check -q -e python 2>&1 |
+    Where-Object { $_ -match "ERROR|error:" } | ForEach-Object { Write-Host "  $_" -ForegroundColor Red }
+Pop-Location
+if ((& $py -c "import sarge; print('ok')" 2>&1) -notmatch "ok") { Stop-With "the Python package did not import after install." }
+Good "sarge installed"
+
+# ------------------------------------------------------------------ 6. your paths
+Step "start scripts, with your paths"
+
+$gpuFlag = if ($hasGpu) { "-ngl 99" } else { "-ngl 0 -t 4" }
+$cudaLine = ""
+if ($hasGpu) {
+    $tk = Get-ChildItem "C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA" -Directory -ErrorAction SilentlyContinue |
+          Sort-Object Name -Descending | Select-Object -First 1
+    if ($tk) { $cudaLine = "set `"CUDA_PATH=$($tk.FullName)`"`r`nset `"PATH=%CUDA_PATH%\bin\x64;%CUDA_PATH%\bin;%PATH%`"" }
+}
+
+@"
+@echo off
+REM written by install.ps1 on $(Get-Date -Format 'yyyy-MM-dd HH:mm')
+$cudaLine
+"$bin\llama-server.exe" ^
+  -m "$modelPath" ^
+  $gpuFlag -c 32768 -np 1 -ctk q8_0 -ctv q8_0 --repeat-penalty 1.1 --repeat-last-n 256 --port 8421 %*
+"@ | Set-Content (Join-Path $here "start-organ.cmd") -Encoding ASCII
+Good "start-organ.cmd"
+
+@"
+@echo off
+REM written by install.ps1
+set "SARGE_HOME=$here"
+cd /d "$here"
+$py tools\console.py %*
+"@ | Set-Content (Join-Path $here "start-console.cmd") -Encoding ASCII
+Good "start-console.cmd"
+
+setx SARGE_HOME $here | Out-Null
+$env:SARGE_HOME = $here
+Good "SARGE_HOME set"
+
+# ------------------------------------------------------------------ 7. prove it
+Step "proving it works"
+
+Say "starting the organ (first load takes a moment) ..."
+$null = Start-Process -FilePath (Join-Path $here "start-organ.cmd") -WindowStyle Minimized -PassThru
+$up = $false
+for ($i = 0; $i -lt 120; $i++) {
+    Start-Sleep 2
+    try { if ((Invoke-WebRequest -Uri "http://127.0.0.1:8421/health" -TimeoutSec 2 -UseBasicParsing).StatusCode -eq 200) { $up = $true; break } } catch {}
+}
+if (-not $up) { Stop-With "the organ did not answer on :8421 within four minutes.`n  Run start-organ.cmd yourself and read the window." }
+Good "organ answering on :8421"
+
+$fix = Join-Path $here "rust\tests\judge"
+$verdict = & $hs --check $fix --file js-await-sync-bad.js --repo judge --rules (Join-Path $fix "node.sarge") 2>&1 | Out-String
+if ($verdict -match "CHECKS FAILED") { Good "the check caught a known-bad file - the instrument goes red when it should" }
+else {
+    Write-Host "  the check did NOT catch a file it is known to catch." -ForegroundColor Red
+    Write-Host "  Do not trust a pass from it until this is fixed." -ForegroundColor Red
+    Stop-With "self-test failed."
+}
+
+Write-Host @"
+
+  DONE.
+
+    start-organ.cmd      the model, on :8421   (leave it running)
+    start-console.cmd    the page, on :8420    - a folder, a task, Run
+
+  Optional - the tutor is the one thing that leaves your machine:
+    setx ANTHROPIC_API_KEY sk-ant-...
+
+  What broke, what it got wrong, what you wish it caught:
+    $REPO/discussions
+
+"@ -ForegroundColor White

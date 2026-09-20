@@ -34,7 +34,24 @@ thing that leaves your machine, and only if you give it a key.
 
 ## Get started
 
-**[Installation and first run →](../../wiki/Set-up-with-LangChain)**
+One command, in PowerShell:
+
+```powershell
+irm https://raw.githubusercontent.com/1picassoai/Sarge/main/install.ps1 | iex
+```
+
+**What it does, and nothing else:** clones the `v0.1.0` tag into `.\Sarge`, downloads the
+prebuilt organ (46 MB) from this repo's release and the model (2.4 GB) from Hugging Face,
+`pip install`s the Python harness into that clone, writes two start scripts with your own
+paths in them, then starts the organ and **proves the check can catch a known-bad file
+before it tells you it is done.** Nothing is installed system-wide.
+
+The CUDA runtime (405 MB) is fetched only if you have an NVIDIA card and no toolkit already.
+No card, no download, and Sarge runs on the CPU.
+
+Then: `start-organ.cmd`, `start-console.cmd`, and open `http://127.0.0.1:8420`.
+
+Prefer to do it by hand? **[The long way, every command explained →](../../wiki/Set-up-with-LangChain)**
 
 ## What you need — no GPU required
 
