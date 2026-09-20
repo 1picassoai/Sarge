@@ -30,22 +30,87 @@ function Good     ($m) { Write-Host "  OK  $m" -ForegroundColor Green }
 function Warn     ($m) { Write-Host "  !   $m" -ForegroundColor Yellow }
 function Stop-With($m) { Write-Host "`nSTOPPED: $m`n" -ForegroundColor Red; exit 1 }
 
+# A live bar, because a 2.4 GB download with no feedback looks like a hang.
+function Show-Bar ($done, $total, $label) {
+    $w = 34
+    if ($total -gt 0) {
+        $pct  = [math]::Min(100, [int](($done / $total) * 100))
+        $fill = [int](($pct / 100) * $w)
+        $bar  = ("#" * $fill).PadRight($w, ".")
+        $txt  = "{0,-22} [{1}] {2,3}%  {3,6:N0} / {4:N0} MB" -f $label, $bar, $pct, ($done/1MB), ($total/1MB)
+    } else {
+        $bar = ("#" * (($script:spin % $w) + 1)).PadRight($w, ".")
+        $txt = "{0,-22} [{1}]        {2,6:N0} MB" -f $label, $bar, ($done/1MB)
+        $script:spin++
+    }
+    # Only animate on a real console; when output is piped or captured, a carriage
+    # return produces a new line per tick and floods the log.
+    if ($Host.UI.RawUI -and -not [Console]::IsOutputRedirected) {
+        Write-Host ("`r  " + $txt) -NoNewline -ForegroundColor DarkCyan
+    } elseif ($script:lastPct -ne $pct -and ($pct % 25) -eq 0) {
+        Write-Host ("  " + $txt) -ForegroundColor DarkCyan
+        $script:lastPct = $pct
+    }
+}
+
 function Get-File ($url, $dest, $what) {
     if (Test-Path $dest) { Good "$what already here"; return }
-    Say "downloading $what ..."
     $tmp = "$dest.part"
-    try   { Invoke-WebRequest -Uri $url -OutFile $tmp -UseBasicParsing }
-    catch { Stop-With "could not download $what`n  $url`n  $($_.Exception.Message)" }
+    $script:spin = 0
+    try {
+        $req = [System.Net.HttpWebRequest]::Create($url)
+        $req.UserAgent = "sarge-install"
+        $res = $req.GetResponse()
+        $total = $res.ContentLength
+        $in  = $res.GetResponseStream()
+        $outf = [System.IO.File]::Create($tmp)
+        $buf = New-Object byte[] 262144
+        $done = 0; $tick = 0
+        while (($n = $in.Read($buf, 0, $buf.Length)) -gt 0) {
+            $outf.Write($buf, 0, $n)
+            $done += $n; $tick++
+            if ($tick % 8 -eq 0) { Show-Bar $done $total $what }
+        }
+        $outf.Close(); $in.Close(); $res.Close()
+        Show-Bar $done $total $what
+        Write-Host ""
+    } catch {
+        Write-Host ""
+        if (Test-Path $tmp) { Remove-Item $tmp -Force -ErrorAction SilentlyContinue }
+        Stop-With "could not download $what`n  $url`n  $($_.Exception.Message)"
+    }
     Move-Item $tmp $dest -Force
     Good ("{0}  ({1:N0} MB)" -f $what, ((Get-Item $dest).Length / 1MB))
 }
 
-Write-Host @"
+# A spinner for the steps that have no size to measure.
+function Wait-With-Spinner ($job, $label) {
+    $frames = @("|", "/", "-", "\")
+    $i = 0
+    while ($job.State -eq "Running") {
+        Write-Host ("`r  {0} {1}" -f $frames[$i % 4], $label) -NoNewline -ForegroundColor DarkCyan
+        Start-Sleep -Milliseconds 120
+        $i++
+    }
+    Write-Host ("`r" + (" " * ($label.Length + 6)) + "`r") -NoNewline
+}
 
-  SARGE - prompts negotiate, Sarge doesn't
-  about 2.4 GB to download, once. No GPU required.
-
-"@ -ForegroundColor White
+Write-Host ""
+foreach ($l in @(
+    "   ____                    ",
+    "  / ___|  __ _ _ __ __ _  ___ ",
+    "  \___ \ / _`` | '__/ _`` |/ _ \",
+    "   ___) | (_| | | | (_| |  __/",
+    "  |____/ \__,_|_|  \__, |\___|",
+    "                   |___/      ")) {
+    Write-Host $l -ForegroundColor DarkYellow
+    Start-Sleep -Milliseconds 60
+}
+Write-Host ""
+Write-Host "  Prompts negotiate. Sarge doesn't." -ForegroundColor White
+Start-Sleep -Milliseconds 200
+Write-Host "  About 2.4 GB to download, once. No GPU required." -ForegroundColor DarkGray
+Write-Host ""
 
 # ------------------------------------------------------------------ 1. the machine
 Step "checking the machine"
@@ -209,13 +274,15 @@ Good "SARGE_HOME set"
 # ------------------------------------------------------------------ 7. prove it
 Step "proving it works"
 
-Say "starting the organ (first load takes a moment) ..."
 $null = Start-Process -FilePath (Join-Path $here "start-organ.cmd") -WindowStyle Minimized -PassThru
 $up = $false
-for ($i = 0; $i -lt 120; $i++) {
-    Start-Sleep 2
+$frames = @("|", "/", "-", "\")
+for ($i = 0; $i -lt 240; $i++) {
+    Write-Host ("`r  {0} loading the model into memory ..." -f $frames[$i % 4]) -NoNewline -ForegroundColor DarkCyan
+    Start-Sleep -Milliseconds 900
     try { if ((Invoke-WebRequest -Uri "http://127.0.0.1:8421/health" -TimeoutSec 2 -UseBasicParsing).StatusCode -eq 200) { $up = $true; break } } catch {}
 }
+Write-Host ("`r" + (" " * 44) + "`r") -NoNewline
 if (-not $up) { Stop-With "the organ did not answer on :8421 within four minutes.`n  Run start-organ.cmd yourself and read the window." }
 Good "organ answering on :8421"
 
