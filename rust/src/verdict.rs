@@ -62,6 +62,14 @@ fn ask_organ_n(prompt: &str, n_predict: u32) -> Result<String, String> {
             // answers nothing, so the check read a blank as NONE and caught 0 of 7 (19 Sep).
             // llama-server passes this through to the chat template; a non-thinking model
             // ignores it. The judge must speak, not think.
+            // NOT adding a stop sequence here, and the reason is recorded because it was
+            // tried and reverted on 20 Sep. The release review found a single call running
+            // to the 240-token cap at ~4 tok/s on CPU (~59s) and that IS real. But on the
+            // fixtures measured here the cost was spread evenly: 7 calls, ~10s each, 70s
+            // total, and stop sequences changed nothing. So the driver is the NUMBER of
+            // calls as much as the length of any one, and a stop sequence risks truncating
+            // a legitimate list of HITs to buy a saving that did not appear. The real fix
+            // is fewer or cheaper calls, which is a design change, not a flag.
             "chat_template_kwargs": { "enable_thinking": false }
         }))
         .map_err(|e| format!("organ not reachable at {ORGAN}: {e}"))?

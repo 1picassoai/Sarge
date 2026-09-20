@@ -65,21 +65,22 @@ for the CPU columns — no GPU layers at all:
 | | 4 cores, no GPU | 8 GB GPU |
 |---|---|---|
 | writing code | 11.4 tok/s | 72 tok/s |
-| **checking one file against a 9-rule book** | **~72 s** | **a few seconds** |
+| checking one 2,250-token file | **~70 s** | **a few seconds** |
 
-**A GPU is optional, and on a CPU you will feel it.** The check reads the file once per rule
-in the book, so the cost is the file times the number of rules. Nine rules on a 2,250-token
-file is about seventy seconds on four cores. On a card it is seconds. Writing is slower still
-without a GPU: roughly a minute per hundred lines.
+**A GPU is optional, and on a CPU you will feel the check.** It makes one pass over the file
+with the whole book, then a short second look at each line it suspects — seven calls on the
+file measured here, about ten seconds each without a GPU. On a card the same check is seconds.
+Writing is slower still: roughly a minute per hundred lines on a CPU.
 
-**So: no card, small book.** Sarge works on a plain laptop and is comfortable with a card.
+**So: it runs on a plain laptop, and it is comfortable on a card.**
 
-*Honesty note, and the reason this table has changed three times: the first version quoted
-300 tok/s, measured on a 30-token question where model startup dominates — meaningless. The
-second quoted 0.5 s, which was a single question against an already-cached file — the warm
-path, not what a stranger gets. The number above is wall-clock through `handshake --check`
-itself, on files the organ had never seen, which is the thing a user actually waits for.
-Every correction made it look worse. The [release review](../../releases/tag/v0.1.1) caught
-two of the three.*
+*Honesty note, and the reason this table has changed four times. 300 tok/s: measured on a
+30-token question where startup dominates — meaningless. 0.5 s: one question against an
+already-cached file — the warm path, not what a stranger gets. "~72 s because the check reads
+the file once per rule": the seconds were real, the explanation invented. The number above is
+wall-clock through `handshake --check` on files the organ had never seen, with the call count
+taken from a trace rather than assumed. Every correction was found by reading the code or
+measuring again, never by reasoning about it, and the
+[release review](../../releases/tag/v0.1.1) caught three of the four.*
 
 MIT. Bring what your coding agent keeps getting wrong: [Discussions](../../discussions).
