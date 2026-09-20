@@ -38,7 +38,7 @@ thing that leaves your machine, and only if you give it a key.
 
 ## What you need
 
-**8 GB RAM and 4 cores.** A GPU makes it fast, it does not make it possible.
+**8 GB RAM and 4 cores.** A GPU is optional, and about ten times faster.
 
 Measured on Qwen3-4B (Q4_K_M, the model Sarge ships with), no GPU layers at all:
 
