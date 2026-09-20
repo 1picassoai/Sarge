@@ -18,7 +18,7 @@ made the agent *keep* a rule after it had read it.
 
 ## What it does
 
-A small model runs on your own GPU and writes the code. Every file it writes is judged
+A small model runs on your own machine and writes the code. Every file it writes is judged
 against a rule book that lives in your repo — not by a regex, by the model itself — and
 **the run refuses while a rule is broken.** When it gets the same thing wrong twice, a tutor
 teaches it that rule once, from its own mistake, and writes it into the book. Next time, the
@@ -35,5 +35,20 @@ thing that leaves your machine, and only if you give it a key.
 ## Get started
 
 **[Installation and first run →](../../wiki/Set-up-with-LangChain)**
+
+## What you need
+
+**8 GB RAM and 4 cores.** A GPU makes it fast, it does not make it possible.
+
+Measured on Qwen3-4B (Q4_K_M, the model Sarge ships with), no GPU layers at all:
+
+| | 4 cores | 8 cores |
+|---|---|---|
+| writing code | 11.6 tokens/sec | 13.7 tokens/sec |
+| reading a file to judge it | 300 tokens/sec | 259 tokens/sec |
+
+So **the check is fast on a plain CPU** — judging is nearly all reading, and a file comes back
+in about a second. **Writing is the slow half**: roughly a minute for a hundred-line file, so
+a full task takes minutes rather than seconds. On an 8 GB GPU it is about ten times quicker.
 
 MIT. Bring what your coding agent keeps getting wrong: [Discussions](../../discussions).
