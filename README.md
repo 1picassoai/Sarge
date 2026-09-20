@@ -2,9 +2,8 @@
 
 **Drills it until it sticks. Doesn't negotiate.**
 
-> **Stop babysitting your coding agent.** Write your rules down once. Every file it writes is
-> checked against them, **the run refuses while a rule is broken**, and when it fails twice it
-> gets taught once — permanently.
+> **Stop babysitting your coding agent.** Sarge checks every file it writes against your rules
+> and refuses to run until it complies.
 
 ![The test web UI showing the agent coding in real time when presented with a coding challenge](docs/console.png)
 
