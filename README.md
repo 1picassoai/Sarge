@@ -42,7 +42,7 @@ One command, in PowerShell:
 irm https://raw.githubusercontent.com/1picassoai/Sarge/main/install.ps1 | iex
 ```
 
-**What it does, and nothing else:** clones the `v0.1.0` tag into `.\Sarge`, downloads the
+**What it does, and nothing else:** clones the `v0.1.1` tag into `.\Sarge`, downloads the
 prebuilt organ (46 MB) from this repo's release and the model (2.4 GB) from Hugging Face,
 `pip install`s the Python harness into that clone, writes two start scripts with your own
 paths in them, then starts the organ and **proves the check can catch a known-bad file
@@ -55,34 +55,17 @@ Then: `start-organ.cmd`, `start-console.cmd`, and open `http://127.0.0.1:8420`.
 
 Prefer to do it by hand? **[The long way, every command explained →](../../wiki/Set-up-with-LangChain)**
 
-## What you need — no GPU required
+## What you need
 
 **8 GB RAM and 4 CPU cores.** A GPU makes it faster; it is not required.
 
-Measured on Qwen3-4B (Q4_K_M, the model Sarge ships with), on a quiet machine, `-ngl 0`
-for the CPU columns — no GPU layers at all:
+Measured on Qwen3-4B (Q4_K_M), the model Sarge runs with, on a quiet machine:
 
 | | 4 cores, no GPU | 8 GB GPU |
 |---|---|---|
 | writing code | 11.4 tok/s | 72 tok/s |
-| checking one 2,250-token file | **~70 s** | **a few seconds** |
+| checking one 2,250-token file | ~70 s | a few seconds |
 
-**A GPU is optional, and on a CPU you will feel the check.** It makes one pass over the file
-with the whole book, then **two** short looks at each line it suspects — the line in its
-context, and the line on its own, which must agree before it counts as a hit. So the cost is
-one pass plus two calls per suspected line: seven calls on the file measured here, about ten
-seconds each without a GPU. On a card the same check is seconds. Writing is slower still:
-roughly a minute per hundred lines on a CPU.
-
-**So: it runs on a plain laptop, and it is comfortable on a card.**
-
-*Honesty note, and the reason this table has changed four times. 300 tok/s: measured on a
-30-token question where startup dominates — meaningless. 0.5 s: one question against an
-already-cached file — the warm path, not what a stranger gets. "~72 s because the check reads
-the file once per rule": the seconds were real, the explanation invented. The number above is
-wall-clock through `handshake --check` on files the organ had never seen, with the call count
-taken from a trace rather than assumed. Every correction was found by reading the code or
-measuring again, never by reasoning about it, and the
-[release review](../../releases/tag/v0.1.1) caught three of the four.*
+**It runs on a plain laptop, and it is comfortable on a card.**
 
 MIT. Bring what your coding agent keeps getting wrong: [Discussions](../../discussions).
