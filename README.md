@@ -59,20 +59,27 @@ Prefer to do it by hand? **[The long way, every command explained →](../../wik
 
 **8 GB RAM and 4 CPU cores.** A GPU makes it faster; it is not required.
 
-Measured on Qwen3-4B (Q4_K_M, the model Sarge ships with), on a quiet machine with
-`-ngl 0` — no GPU layers at all — median of three runs:
+Measured on Qwen3-4B (Q4_K_M, the model Sarge ships with), on a quiet machine, `-ngl 0`
+for the CPU columns — no GPU layers at all:
 
-| | 4 cores, no GPU | 8 cores, no GPU | 8 GB GPU |
-|---|---|---|---|
-| **writing code** | 11.4 tok/s | 15.2 tok/s | **72 tok/s** |
-| **judging a 2,250-token file** | **0.5 s** | 0.4 s | under 0.1 s |
+| | 4 cores, no GPU | 8 GB GPU |
+|---|---|---|
+| writing code | 11.4 tok/s | 72 tok/s |
+| **checking one file against a 9-rule book** | **~72 s** | **a few seconds** |
 
-**Judging is fast everywhere.** A file comes back in about half a second with no GPU at all,
-because judging is reading plus a one-word answer. **Writing is the slow half**: roughly a
-minute per hundred lines on a CPU, about six times quicker on a card.
+**A GPU is optional, and on a CPU you will feel it.** The check reads the file once per rule
+in the book, so the cost is the file times the number of rules. Nine rules on a 2,250-token
+file is about seventy seconds on four cores. On a card it is seconds. Writing is slower still
+without a GPU: roughly a minute per hundred lines.
 
-*Honesty note: an earlier version of this table quoted a tokens-per-second figure for judging.
-It was measured on a thirty-token question where startup dominates, which made it meaningless.
-Wall-clock on a real file is what a user actually experiences, so that is what is quoted now.*
+**So: no card, small book.** Sarge works on a plain laptop and is comfortable with a card.
+
+*Honesty note, and the reason this table has changed three times: the first version quoted
+300 tok/s, measured on a 30-token question where model startup dominates — meaningless. The
+second quoted 0.5 s, which was a single question against an already-cached file — the warm
+path, not what a stranger gets. The number above is wall-clock through `handshake --check`
+itself, on files the organ had never seen, which is the thing a user actually waits for.
+Every correction made it look worse. The [release review](../../releases/tag/v0.1.1) caught
+two of the three.*
 
 MIT. Bring what your coding agent keeps getting wrong: [Discussions](../../discussions).
