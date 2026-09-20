@@ -36,19 +36,19 @@ thing that leaves your machine, and only if you give it a key.
 
 **[Installation and first run →](../../wiki/Set-up-with-LangChain)**
 
-## What you need
+## What you need — no GPU required
 
-**8 GB RAM and 4 cores.** A GPU is optional, and about ten times faster.
+**8 GB RAM and 4 CPU cores.** A GPU makes it faster; it is not required.
 
-Measured on Qwen3-4B (Q4_K_M, the model Sarge ships with), no GPU layers at all:
+Measured on Qwen3-4B (Q4_K_M, the model Sarge ships with), same prompt on each:
 
-| | 4 cores | 8 cores |
-|---|---|---|
-| writing code | 11.6 tokens/sec | 13.7 tokens/sec |
-| reading a file to judge it | 300 tokens/sec | 259 tokens/sec |
+| | 4 cores, no GPU | 8 cores, no GPU | 8 GB GPU |
+|---|---|---|---|
+| **writing code** | 11.6 tok/s | 13.7 tok/s | **72 tok/s** |
+| **reading a file to judge it** | 300 tok/s | 259 tok/s | 405 tok/s |
 
-So **the check is fast on a plain CPU** — judging is nearly all reading, and a file comes back
-in about a second. **Writing is the slow half**: roughly a minute for a hundred-line file, so
-a full task takes minutes rather than seconds. On an 8 GB GPU it is about ten times quicker.
+**Judging is fast everywhere** — it is nearly all reading, and a file comes back in about a
+second even with no GPU at all. **Writing is the slow half**: roughly a minute for a
+hundred-line file on a CPU, about six times quicker on a card.
 
 MIT. Bring what your coding agent keeps getting wrong: [Discussions](../../discussions).
