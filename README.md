@@ -1,9 +1,10 @@
 # Sarge
 
-**Drills it until it sticks. Doesn't negotiate.**
+**Prompts negotiate. Sarge doesn't.**
 
-> **Stop babysitting your coding agent.** Sarge checks every file it writes against your rules
-> and refuses to run until it complies.
+> **Stop babysitting your coding agent.** Sarge checks every file it writes against your
+> repository's rules and refuses to run the code until it complies. When the agent breaks the
+> same rule twice, Sarge teaches it the fix — permanently.
 
 ![The test web UI showing the agent coding in real time when presented with a coding challenge](docs/console.png)
 
