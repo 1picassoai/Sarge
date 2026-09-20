@@ -18,7 +18,11 @@
 $ErrorActionPreference = "Stop"
 $ProgressPreference    = "SilentlyContinue"   # much faster Invoke-WebRequest
 
-$TAG       = "v0.1.0"
+# The tag the installer fetches. It pins the TREE, the ORGAN ASSET and the CUDA runtime,
+# so all three must come from the same release or a stranger gets a mismatched pair.
+# (the release review, 20 Sep: this said v0.1.0 while the script came from main, so the
+# installer was new and the check it installed was twenty commits old.)
+$TAG       = "v0.1.1"
 $REPO      = "https://github.com/1picassoai/Sarge"
 $MODEL     = "Qwen3-4B-Instruct-2507-Q4_K_M.gguf"
 $MODEL_URL = "https://huggingface.co/unsloth/Qwen3-4B-Instruct-2507-GGUF/resolve/main/$MODEL"

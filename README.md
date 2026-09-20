@@ -25,7 +25,9 @@ teaches it that rule once, from its own mistake, and writes it into the book. Ne
 rule is already there, and it holds.
 
 **Seven tasks on one repo, seven of seven correct.** The same model without Sarge: none.
-Every failure on the way is written down with its cause, most of them ours.
+**And the check itself: six of seven known faults caught, with one false flag** — it is your
+local model judging a line, so it is only as good as that model. Every failure on the way is
+written down with its cause, most of them ours.
 
 ![Sarge architecture: your agent hands a task to the harness; the local model writes a file; the check judges it against the book; a hit stops the run; the tutor is the one thing that leaves your machine](docs/architecture.png)
 
