@@ -30,7 +30,10 @@ if [ ! -f "$HANDSHAKE_LIB" ]; then
 fi
 HANDSHAKE_LIB="$(cd "$(dirname "$HANDSHAKE_LIB")" && pwd)/$(basename "$HANDSHAKE_LIB")"
 
-COMMIT="$(tr -d ' \r\n\t\357\273\277' < LLAMA_CPP_COMMIT)"   # strips a BOM if one is there
+# LLAMA_CPP_COMMIT is UTF-8 with a BOM, and the BOM travels into the ref if it is not
+# stripped: run 3 died on "couldn't find remote ref <BOM>89fe242...". sed removes the BOM
+# as a byte sequence; tr -d with an octal escape did not.
+COMMIT="$(sed -e '1s/^\xEF\xBB\xBF//' LLAMA_CPP_COMMIT | tr -cd '0-9a-fA-F')"
 echo "=== llama.cpp pinned at $COMMIT ==="
 
 # The patch was cut against exactly this commit. A moving checkout is a broken patch, so the
