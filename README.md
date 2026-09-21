@@ -2,6 +2,8 @@
 
 **Prompts negotiate. Sarge doesn't.**
 
+### **Runs on macOS and Windows. One command, either way.**
+
 > **Stop babysitting your coding agent.** Sarge checks every file it writes against your
 > repository's rules and refuses to run the code until it complies. When the agent breaks the
 > same rule twice, Sarge teaches it the fix — permanently.
@@ -54,6 +56,16 @@ curl -fsSL https://raw.githubusercontent.com/1picassoai/Sarge/main/install.sh | 
 so the install and the check are proven there, and Metal has never been exercised. No Mac
 speed figures are published for that reason. If it misbehaves on your machine, say so in
 [Discussions](../../discussions) and it gets fixed.*
+
+**Every download is checked.** Both installers verify the sha256 of the organ, the model and
+the CUDA runtime against the published hashes, and delete the file and stop on a mismatch.
+
+**One trade-off you should know about, on macOS.** The organ is not yet signed or notarised
+by Apple, so the installer runs `xattr -dr com.apple.quarantine` on the folder it just
+unpacked — and only that folder. Without it macOS shows a security dialog for every library
+in the organ. This is a documented compromise, not a hidden one: the alternative pushes
+people into clicking through a stack of warnings or disabling Gatekeeper system-wide, which
+is worse. Notarisation is the real fix and it is on the list.
 
 **What it does, and nothing else:** clones the `v0.2.0` tag into a `Sarge` folder, downloads
 the prebuilt organ for your platform and the model (2.4 GB) from Hugging Face, `pip install`s

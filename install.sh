@@ -15,6 +15,40 @@ MODEL_URL="https://huggingface.co/unsloth/Qwen3-4B-Instruct-2507-GGUF/resolve/ma
 ORGAN_ASSET="sarge-organ-macos-arm64.zip"
 NEED_GB=6
 
+# EVERY DOWNLOAD IS CHECKED. Added 21 Sep after @Galahad's release review found that
+# neither installer verified a single byte it fetched - while a comment claimed it
+# "stops loudly on anything it cannot verify". It did not.
+#
+# This matters more here than on Windows: the installer strips macOS's own integrity
+# gate off the organ (xattr, below) on the grounds that the artefact is ours. That
+# argument only holds if we can SHOW it is ours. Now we can.
+#
+# The organ hash is the artefact published on the release. The model hash is Hugging
+# Face's own X-Linked-ETag for that file, verified 21 Sep against the copy on the
+# Captain's disk - the same 2,497,281,120 bytes.
+ORGAN_SHA256="d0fdf88e5c4bb9467f3dd3a31ba1f3943eb1e915b9eb0e802b180dedd8d8bb61"
+MODEL_SHA256="3605803b982cb64aead44f6c1b2ae36e3acdb41d8e46c8a94c6533bc4c67e597"
+
+# A hash that does not match is not a warning. The file is deleted and the install stops:
+# a half-trusted binary on disk is worse than no binary, because the next run would find
+# it already there and skip the download.
+verify_sha256() {
+  path="$1"; want="$2"; what="$3"
+  got="$(shasum -a 256 "$path" 2>/dev/null | awk '{print $1}')"
+  if [ -z "$got" ]; then
+    rm -f "$path"
+    die "could not hash $what - shasum is missing, and nothing unverified is installed."
+  fi
+  if [ "$got" != "$want" ]; then
+    rm -f "$path"
+    die "$what does not match what we published, and has been deleted.
+  expected  $want
+  got       $got
+  Do not run anything that was downloaded. Tell us: $REPO/discussions"
+  fi
+  good "$what verified (sha256 $(echo "$want" | cut -c1-16)...)"
+}
+
 # ------------------------------------------------------------------ voice
 if [ -t 1 ]; then
   C_CY=$'\033[36m'; C_GR=$'\033[32m'; C_YE=$'\033[33m'; C_RE=$'\033[31m'
@@ -132,6 +166,8 @@ if [ -x "$SERVER" ]; then
 else
   ZIP="$(mktemp -t sarge-organ).zip"
   get_file "$REPO/releases/download/$TAG/$ORGAN_ASSET" "$ZIP" "the organ (20 MB)"
+  # Verified BEFORE it is unpacked, and long before the quarantine flag comes off it.
+  verify_sha256 "$ZIP" "$ORGAN_SHA256" "the organ"
   unzip -oq "$ZIP" -d "$BIN" || die "could not unpack the organ archive."
   if [ ! -x "$SERVER" ]; then
     found="$(find "$BIN" -name llama-server -type f | head -1)"
@@ -177,6 +213,8 @@ else
   MODEL_PATH="$MODELS/$MODEL"
   say "2.4 GB, and it only happens once"
   get_file "$MODEL_URL" "$MODEL_PATH" "the model"
+  say "checking the model (2.4 GB, this takes a few seconds)"
+  verify_sha256 "$MODEL_PATH" "$MODEL_SHA256" "the model"
   good "model downloaded"
 fi
 

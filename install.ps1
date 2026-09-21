@@ -12,8 +12,13 @@
 #   7. writes start-organ.cmd and start-console.cmd with YOUR paths
 #   8. starts the organ and proves the check can catch a known-bad file
 #
-# Nothing is installed system-wide. Nothing leaves your machine. It asks nothing,
-# guesses nothing, and stops loudly on anything it cannot verify.
+# Nothing is installed system-wide. Nothing leaves your machine. It asks nothing and
+# guesses nothing. Every file it downloads is checked against a published sha256, and a
+# mismatch deletes the file and stops the install.
+#
+# That last sentence was FALSE until 21 Sep - it claimed verification this script did not
+# do. @Galahad's release review found it. If you change how a download works here, change
+# this comment in the same commit or it becomes a lie again.
 
 $ErrorActionPreference = "Stop"
 $ProgressPreference    = "SilentlyContinue"   # much faster Invoke-WebRequest
@@ -27,6 +32,29 @@ $REPO      = "https://github.com/1picassoai/Sarge"
 $MODEL     = "Qwen3-4B-Instruct-2507-Q4_K_M.gguf"
 $MODEL_URL = "https://huggingface.co/unsloth/Qwen3-4B-Instruct-2507-GGUF/resolve/main/$MODEL"
 $NEED_GB   = 4
+
+# EVERY DOWNLOAD IS CHECKED. Added 21 Sep after @Galahad's release review: neither
+# installer verified a single byte it fetched, while the comment at the top of this file
+# claimed it "stops loudly on anything it cannot verify". It did not. It does now.
+#
+# The organ and cudart hashes are the assets signed into the v0.1.1 stamp and carried
+# byte-identical into v0.2.0. The model hash is Hugging Face's own X-Linked-ETag,
+# verified 21 Sep against the 2,497,281,120-byte copy on the Captain's disk.
+$ORGAN_SHA256  = "3d336f87c3be11d3e217c9091922656f943e952188206bf7fba6eb94f3c0c92d"
+$CUDART_SHA256 = "37d27a8ff3366f3f2d264dd693a88b0884f457985f00c9d0a416e74266155012"
+$MODEL_SHA256  = "3605803b982cb64aead44f6c1b2ae36e3acdb41d8e46c8a94c6533bc4c67e597"
+
+# A mismatch is not a warning. The file is deleted and the install stops - a half-trusted
+# binary left on disk is worse than none, because the next run would find it already
+# there and skip the download.
+function Verify-Sha256 ($path, $want, $what) {
+    $got = (Get-FileHash -Path $path -Algorithm SHA256).Hash.ToLower()
+    if ($got -ne $want.ToLower()) {
+        Remove-Item $path -Force -ErrorAction SilentlyContinue
+        Stop-With "$what does not match what we published, and has been deleted.`n  expected  $want`n  got       $got`n  Do not run anything that was downloaded. Tell us: $REPO/discussions"
+    }
+    Good "$what verified (sha256 $($want.Substring(0,16))...)"
+}
 
 function Say      ($m) { Write-Host "  $m" }
 function Step     ($m) { Write-Host "`n== $m" -ForegroundColor Cyan }
@@ -175,6 +203,7 @@ if (Test-Path $server) { Good "organ already here" }
 else {
     $zip = Join-Path $env:TEMP "sarge-organ.zip"
     Get-File "$REPO/releases/download/$TAG/sarge-organ-win-x64-cuda13.zip" $zip "the organ (46 MB)"
+    Verify-Sha256 $zip $ORGAN_SHA256 "the organ"
     Expand-Archive -Path $zip -DestinationPath $bin -Force
     if (-not (Test-Path $server)) {
         $f = Get-ChildItem $bin -Recurse -Filter "llama-server.exe" | Select-Object -First 1
@@ -211,6 +240,7 @@ if ($hasGpu) {
     else {
         $zip = Join-Path $env:TEMP "cudart.zip"
         Get-File "$REPO/releases/download/$TAG/cudart-win-x64-cuda13.zip" $zip "the CUDA runtime (405 MB, one time)"
+        Verify-Sha256 $zip $CUDART_SHA256 "the CUDA runtime"
         Expand-Archive -Path $zip -DestinationPath $bin -Force
         Remove-Item $zip -Force -ErrorAction SilentlyContinue
         Good "CUDA runtime unpacked"
@@ -229,6 +259,8 @@ else {
     $modelPath = Join-Path $models $MODEL
     Say "2.4 GB, and it only happens once"
     Get-File $MODEL_URL $modelPath "the model"
+    Say "checking the model (2.4 GB, this takes a few seconds)"
+    Verify-Sha256 $modelPath $MODEL_SHA256 "the model"
 }
 
 # ------------------------------------------------------------------ 5. the harness
