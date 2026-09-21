@@ -1,0 +1,117 @@
+name: verify release
+
+# The gate behind two promises that had none. Both installers pin a sha256 for every asset
+# they download and a TAG they clone; nothing enforced that those values match what is
+# actually published. @Galahad's review of v0.2.0 (21 Sep) named it the third self-
+# referential trap in the installer: ORGAN_SHA256 is welded to one build, and a rebuild
+# without an installer change would kill every install. The tag pin is the older one - it
+# blocked v0.1.1-rc1 when the installer said v0.1.0 while the script came from main.
+#
+# So this job, for a given release tag:
+#   1. checks out the installers AT THAT TAG and reads every pinned value out of them
+#   2. requires both installers to pin THIS tag
+#   3. downloads each asset ANONYMOUSLY from the public release URL - the stranger path,
+#      no token, no artifact shortcut - and hashes it
+#   4. fails on any missing asset, any hash mismatch, or a model hash the two installers
+#      disagree on
+#
+# Proven red before it was trusted: dispatched against v0.1.1, which has no macOS asset
+# and whose installers pin different values, and it failed. Then green on v0.2.0.
+
+on:
+  release:
+    types: [published, edited]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "release tag to verify, e.g. v0.2.0"
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      TAG: ${{ inputs.tag || github.event.release.tag_name }}
+      REPO: https://github.com/1picassoai/Sarge
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.event.release.tag_name }}
+
+      - name: read what the installers pin
+        id: pins
+        run: |
+          set -euo pipefail
+          pin() { grep -oE "$2" "$1" | head -1 | grep -oE '[0-9a-f]{64}|v[0-9]+\.[0-9]+\.[0-9]+' || true; }
+          SH_TAG=$(pin install.sh   '^TAG="v[0-9.]+"')
+          PS_TAG=$(pin install.ps1  '^\$TAG\s*=\s*"v[0-9.]+"')
+          MAC_ORGAN=$(pin install.sh  '^ORGAN_SHA256="[0-9a-f]{64}"')
+          SH_MODEL=$(pin install.sh   '^MODEL_SHA256="[0-9a-f]{64}"')
+          WIN_ORGAN=$(pin install.ps1 '^\$ORGAN_SHA256\s*=\s*"[0-9a-f]{64}"')
+          CUDART=$(pin install.ps1    '^\$CUDART_SHA256\s*=\s*"[0-9a-f]{64}"')
+          PS_MODEL=$(pin install.ps1  '^\$MODEL_SHA256\s*=\s*"[0-9a-f]{64}"')
+          printf '%-12s %s\n' "release tag" "$TAG" "sh tag" "${SH_TAG:-MISSING}" "ps1 tag" "${PS_TAG:-MISSING}" \
+            "mac organ" "${MAC_ORGAN:-MISSING}" "win organ" "${WIN_ORGAN:-MISSING}" "cudart" "${CUDART:-MISSING}" \
+            "sh model" "${SH_MODEL:-MISSING}" "ps1 model" "${PS_MODEL:-MISSING}"
+          for v in SH_TAG PS_TAG MAC_ORGAN WIN_ORGAN CUDART SH_MODEL PS_MODEL; do
+            echo "$v=${!v}" >> "$GITHUB_OUTPUT"
+          done
+
+      - name: the installers pin the tag they ship in
+        run: |
+          set -euo pipefail
+          fail=0
+          [ "${{ steps.pins.outputs.SH_TAG }}" = "$TAG" ] || { echo "install.sh pins '${{ steps.pins.outputs.SH_TAG }}', release is '$TAG'"; fail=1; }
+          [ "${{ steps.pins.outputs.PS_TAG }}" = "$TAG" ] || { echo "install.ps1 pins '${{ steps.pins.outputs.PS_TAG }}', release is '$TAG'"; fail=1; }
+          [ "$fail" = 0 ] || { echo "AN INSTALLER AT THIS TAG WOULD CLONE A DIFFERENT TAG - the v0.1.1-rc1 blocker, again"; exit 1; }
+          echo "both installers pin $TAG"
+
+      - name: the two installers agree on the model
+        run: |
+          set -euo pipefail
+          [ -n "${{ steps.pins.outputs.SH_MODEL }}" ] && [ "${{ steps.pins.outputs.SH_MODEL }}" = "${{ steps.pins.outputs.PS_MODEL }}" ] \
+            || { echo "install.sh and install.ps1 pin different model hashes (or one is missing)"; exit 1; }
+          echo "model hash agreed: ${{ steps.pins.outputs.SH_MODEL }}"
+
+      # Anonymous. No token, no artifact. If this differs from what a stranger gets, it is
+      # not a test of what a stranger gets.
+      - name: download every asset anonymously and hash it
+        run: |
+          set -euo pipefail
+          check() {
+            name="$1"; want="$2"
+            [ -n "$want" ] || { echo "FAIL  $name: no hash pinned in the installer"; return 1; }
+            url="$REPO/releases/download/$TAG/$name"
+            if ! curl -fsSL "$url" -o "$name"; then
+              echo "FAIL  $name: not on release $TAG ($url)"; return 1
+            fi
+            got=$(sha256sum "$name" | awk '{print $1}')
+            size=$(stat -c %s "$name")
+            if [ "$got" != "$want" ]; then
+              echo "FAIL  $name: published $got, installer pins $want ($size bytes)"; return 1
+            fi
+            echo "ok    $name  $size bytes  $got"
+          }
+          fail=0
+          check sarge-organ-macos-arm64.zip    "${{ steps.pins.outputs.MAC_ORGAN }}" || fail=1
+          check sarge-organ-win-x64-cuda13.zip "${{ steps.pins.outputs.WIN_ORGAN }}" || fail=1
+          check cudart-win-x64-cuda13.zip      "${{ steps.pins.outputs.CUDART }}"    || fail=1
+          [ "$fail" = 0 ] || { echo; echo "AN INSTALLER AT $TAG WOULD DELETE A DOWNLOAD AND STOP - every install would fail"; exit 1; }
+          echo; echo "every asset on $TAG matches what the installers pin"
+
+      # Hugging Face publishes the model's sha256 as X-Linked-ETag. A HEAD is enough - no need
+      # to pull 2.4 GB to know whether the installers pin the right number.
+      - name: the model hash matches what Hugging Face publishes
+        run: |
+          set -euo pipefail
+          url="https://huggingface.co/unsloth/Qwen3-4B-Instruct-2507-GGUF/resolve/main/Qwen3-4B-Instruct-2507-Q4_K_M.gguf"
+          etag=$(curl -sIL "$url" | grep -i '^x-linked-etag:' | tail -1 | grep -oE '[0-9a-f]{64}' || true)
+          [ -n "$etag" ] || { echo "could not read X-Linked-ETag from Hugging Face - cannot verify the model pin"; exit 1; }
+          [ "$etag" = "${{ steps.pins.outputs.SH_MODEL }}" ] \
+            || { echo "FAIL  model: Hugging Face publishes $etag, installers pin ${{ steps.pins.outputs.SH_MODEL }}"; exit 1; }
+          echo "ok    model  $etag"
