@@ -17,5 +17,5 @@ REM passed --parallel 32 when only CMAKE_BUILD_PARALLEL_LEVEL was set.
 REM BOTH binaries. handshake.exe is the one the AGENT shells for --check, --learn and
 REM --ask; compile.exe is the standalone loop. Building only `compile` left the agent
 REM talking to a stale handshake that rejected a flag added minutes earlier.
-cargo build -j 4 --release --features model --bin compile --bin handshake --bin point
+cargo build -j 4 --release --features model,cuda --bin compile --bin handshake --bin point
 echo === EXIT %ERRORLEVEL% AT %TIME% ===

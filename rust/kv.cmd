@@ -17,5 +17,5 @@ set "CMAKE_BUILD_PARALLEL_LEVEL=4"
 set "CUDAARCHS=89"
 cd /d "%~dp0"
 echo === START %TIME% ===
-cargo run --release --features model --bin kv -- %*
+cargo run --release --features model,cuda --bin kv -- %*
 echo === EXIT %ERRORLEVEL% AT %TIME% ===

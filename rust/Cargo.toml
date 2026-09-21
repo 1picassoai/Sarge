@@ -18,11 +18,19 @@ ureq = { version = "2", features = ["json"] }
 # on a machine with no LLVM. Only `compile` needs llama.cpp.
 [features]
 default = []
-# The model always runs on the GPU. CPU inference for an 8B is not a deployment, so
-# there is no CPU path and no flag to choose between them. Needs the CUDA toolkit at
-# build time - 13.4+, because 12.0 has no MSBuild integration for Visual Studio 18
-# and CMake reports "No CUDA toolset found".
-model = ["dep:llama-cpp-2", "dep:encoding_rs", "llama-cpp-2/cuda"]
+# The model runs on whatever accelerator the platform has, and the backend is chosen
+# at build time because it is a compile-time link, not a runtime switch. `model` on its
+# own builds no backend; pick exactly one of `cuda` or `metal` beside it.
+#
+#   Windows / Linux with an NVIDIA card:  --features model,cuda
+#   macOS on Apple silicon:               --features model,metal
+#
+# CUDA needs the toolkit at build time - 13.4+, because 12.0 has no MSBuild integration
+# for Visual Studio 18 and CMake reports "No CUDA toolset found". Metal needs nothing
+# beyond the Apple toolchain; it ships with the OS.
+model = ["dep:llama-cpp-2", "dep:encoding_rs"]
+cuda  = ["llama-cpp-2/cuda"]
+metal = ["llama-cpp-2/metal"]
 
 [lib]
 name = "handshake"

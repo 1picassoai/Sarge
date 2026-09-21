@@ -10,6 +10,7 @@ could not find its book, exited 2, and a correct edit was bounced back as a viol
 """
 from __future__ import annotations
 
+import os
 import subprocess
 from pathlib import Path
 from typing import Optional, Tuple
@@ -17,7 +18,7 @@ from typing import Optional, Tuple
 
 def run(home: Path, book: Optional[Path], *args: str) -> Tuple[bool, str]:
     try:
-        exe = home / "rust" / "target" / "release" / "handshake.exe"
+        exe = home / "rust" / "target" / "release" / ("handshake.exe" if os.name == "nt" else "handshake")
         if not exe.is_file():
             return True, f"(handshake binary not built: {exe})"
         cmd = [str(exe), *args]

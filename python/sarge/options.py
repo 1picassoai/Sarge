@@ -37,7 +37,7 @@ def _vpn_up() -> bool:
 class SargeOptions:
     """
     repo_dir     the repository the agent works in; every path the model touches stays inside it
-    sarge_home   the Sarge clone: rust\\target\\release\\handshake.exe, harness\\CHARACTER.md, book\\universal.sarge
+    sarge_home   the Sarge clone: rust/target/release/handshake (.exe on Windows), harness/CHARACTER.md, book/universal.sarge
                  default: SARGE_HOME, else the clone this package sits in
     book_path    the repo's rule book; default <repo>\\.sarge
     organ_url    llama.cpp with the handshake compiled in, OpenAI-shaped

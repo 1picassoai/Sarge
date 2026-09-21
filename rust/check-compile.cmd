@@ -11,5 +11,5 @@ set "CMAKE_BUILD_PARALLEL_LEVEL=4"
 set "CMAKE_CUDA_ARCHITECTURES=89"
 set "CUDAARCHS=89"
 cd /d "%~dp0"
-cargo check -j 4 --release --features model --bin compile
+cargo check -j 4 --release --features model,cuda --bin compile
 echo === EXIT %ERRORLEVEL% ===

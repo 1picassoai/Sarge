@@ -38,5 +38,5 @@ set "CUDAARCHS=89"
 cd /d "%~dp0"
 echo === START %TIME% ===
 nvcc --version | findstr release
-cargo run --release --features model --bin compile -- %*
+cargo run --release --features model,cuda --bin compile -- %*
 echo === EXIT %ERRORLEVEL% AT %TIME% ===

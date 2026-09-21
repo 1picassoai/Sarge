@@ -18,7 +18,7 @@ Two hook events, one script:
   A guard that cannot check never reports a pass.
 
 Needs: the organ running on :8421, SARGE_HOME pointing at your Sarge clone (with
-rust\target\release\handshake.exe built), and a .sarge at the repo root. No key, no
+rust/target/release/handshake built, .exe on Windows), and a .sarge at the repo root. No key, no
 network: the judge is your own local model.
 
 Install: copy hooks/settings.example.json into your project's .claude/settings.json
@@ -73,7 +73,7 @@ def check(file_path: Path, cwd: Path) -> tuple[bool, str]:
     h = home()
     if h is None:
         raise NotChecked("SARGE_HOME is not set and no Sarge clone was found above this script. Set SARGE_HOME to your clone.")
-    exe = h / "rust" / "target" / "release" / "handshake.exe"
+    exe = h / "rust" / "target" / "release" / ("handshake.exe" if os.name == "nt" else "handshake")
     if not exe.is_file():
         raise NotChecked(f"the handshake is not built: {exe} is missing. Run `cargo build --release` in {h / 'rust'}.")
     repo = repo_root(file_path)

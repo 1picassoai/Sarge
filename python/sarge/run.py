@@ -14,6 +14,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import shutil
 import subprocess
 import time
 from pathlib import Path
@@ -180,6 +181,14 @@ class Run:
         p = subprocess.run(args, cwd=str(cwd or self.repo), capture_output=True, text=True,
                            encoding="utf-8", errors="replace", timeout=timeout, env=env, shell=False)
         return p.returncode, (p.stdout or "") + (p.stderr or "")
+
+    def _npm(self, rest: str) -> List[str]:
+        """npm on Windows is npm.cmd, which subprocess cannot exec with shell=False - hence
+        the cmd.exe /c wrapper that was hardcoded here. cmd.exe does not exist on macOS or
+        Linux, so resolve the real npm there instead."""
+        if os.name == "nt":
+            return ["cmd.exe", "/c", f"npm {rest}"]
+        return [shutil.which("npm") or "npm", *rest.split()]
 
     def _source_files(self) -> List[str]:
         out = []
@@ -487,14 +496,14 @@ class Run:
             for pkg in pkgs:
                 nm = pkg.parent / "node_modules"
                 if not nm.is_dir() or pkg.stat().st_mtime > nm.stat().st_mtime:
-                    code, out = self._sh(["cmd.exe", "/c", "npm install --no-audit --no-fund --loglevel=error"], cwd=pkg.parent)
+                    code, out = self._sh(self._npm("install --no-audit --no-fund --loglevel=error"), cwd=pkg.parent)
                     if code != 0:
                         output = f"npm install in {pkg.parent.relative_to(self.repo)} failed:\n{out}"
                         break
                     if nm.is_dir():
                         os.utime(nm, None)
             if code == 0:
-                code, output = self._sh(["cmd.exe", "/c", "npm run build --if-present"])
+                code, output = self._sh(self._npm("run build --if-present"))
             if code == 0:
                 # `node --check file.js` passes an ES module with a syntax error on Node 24 -
                 # measured 18 Sep, task 7: an extra `)` on line 26 was "green" through two
