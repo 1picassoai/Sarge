@@ -69,11 +69,18 @@ jobs:
           chmod +x organ/build-organ.sh
           ./organ/build-organ.sh
 
+      # llama.cpp on macOS builds SHARED libraries: llama-server is a ~50KB launcher and the
+      # real code lives in libllama-server-impl.dylib beside it, the way the Windows organ
+      # has its DLLs. The handshake is linked into server-context, which lands in that dylib
+      # and NOT in the executable. Run 4 failed here checking the launcher and finding
+      # nothing - the guard was right to fail, it was just reading the wrong file.
       - name: the handshake is actually linked in
         run: |
-          nm organ/llama-src/build/bin/llama-server | grep -qi handshake \
-            || { echo "no handshake symbols in llama-server - the organ built WITHOUT the core"; exit 1; }
-          echo "handshake symbols present"
+          cd organ/llama-src/build/bin
+          ls -la
+          nm libllama-server-impl.dylib 2>/dev/null | grep -qi handshake \
+            || { echo "no handshake symbols in libllama-server-impl.dylib - the organ built WITHOUT the core"; exit 1; }
+          echo "handshake symbols present in libllama-server-impl.dylib"
 
       - name: the organ exists and is arm64
         run: |
@@ -85,8 +92,11 @@ jobs:
         run: |
           mkdir -p dist
           cd organ/llama-src/build/bin
-          zip -r ../../../../dist/sarge-organ-macos-arm64.zip llama-server *.metal *.metallib 2>/dev/null || \
-          zip -r ../../../../dist/sarge-organ-macos-arm64.zip llama-server
+          # The dylibs are NOT optional on macOS - the launcher is 50KB and useless without
+          # them. Packaging llama-server alone would have shipped a zip that cannot run.
+          zip -r ../../../../dist/sarge-organ-macos-arm64.zip \
+            llama-server *.dylib $(ls *.metal *.metallib 2>/dev/null || true)
+          unzip -l ../../../../dist/sarge-organ-macos-arm64.zip
           cd -
           shasum -a 256 dist/sarge-organ-macos-arm64.zip
 
