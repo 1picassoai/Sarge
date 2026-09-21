@@ -71,22 +71,22 @@ jobs:
 
       - name: the handshake is actually linked in
         run: |
-          nm organ/build/bin/llama-server | grep -qi handshake \
+          nm organ/llama-src/build/bin/llama-server | grep -qi handshake \
             || { echo "no handshake symbols in llama-server - the organ built WITHOUT the core"; exit 1; }
           echo "handshake symbols present"
 
       - name: the organ exists and is arm64
         run: |
-          test -f organ/build/bin/llama-server
-          file organ/build/bin/llama-server
-          lipo -archs organ/build/bin/llama-server
+          test -f organ/llama-src/build/bin/llama-server
+          file organ/llama-src/build/bin/llama-server
+          lipo -archs organ/llama-src/build/bin/llama-server
 
       - name: package
         run: |
           mkdir -p dist
-          cd organ/build/bin
-          zip -r ../../../dist/sarge-organ-macos-arm64.zip llama-server *.metal *.metallib 2>/dev/null || \
-          zip -r ../../../dist/sarge-organ-macos-arm64.zip llama-server
+          cd organ/llama-src/build/bin
+          zip -r ../../../../dist/sarge-organ-macos-arm64.zip llama-server *.metal *.metallib 2>/dev/null || \
+          zip -r ../../../../dist/sarge-organ-macos-arm64.zip llama-server
           cd -
           shasum -a 256 dist/sarge-organ-macos-arm64.zip
 
