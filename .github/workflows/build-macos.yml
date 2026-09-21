@@ -1,0 +1,93 @@
+name: build macOS organ
+
+# Why this exists: nobody on this project owns a Mac. GitHub's free Apple-silicon runner
+# is the only way to produce an arm64 organ, and the public log is the receipt - anyone
+# can see the binary came from this source and was not hand-assembled.
+#
+# WHAT THIS PROVES, AND WHAT IT DOES NOT.
+# It proves the crate and llama.cpp compile on real Apple silicon with Metal enabled, and
+# that the binary starts and answers on the CPU. It does NOT prove Metal works: GitHub's
+# hosted macOS runners have no usable GPU. A maintainer's own words on actions/runner-images
+# 7085 - "impossible due to runners' design, there is no any ETA" - and a logged failure
+# reading "There is no available Metal device on this system". So the smoke test below runs
+# with -ngl 0 deliberately. Until a person with a Mac walks the installer, the release is
+# signed as BUILT AND VERIFIED BY CI, NOT WALKED BY A STRANGER.
+#
+# Runner: macos-15, M1, 3 cores, 7 GB RAM, 14 GB disk, free and unlimited on a public repo.
+# CMake, Rust, Cargo and clang are preinstalled - nothing is bootstrapped.
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:      # so it can be run by hand without cutting a tag
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: macos-15
+    timeout-minutes: 90
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: what we were given
+        run: |
+          uname -m
+          sysctl -n hw.ncpu hw.memsize
+          df -h /
+          cmake --version | head -1
+          cargo --version
+          clang --version | head -1
+
+      # 3 cores on this runner, not 4. The cap exists because 32 cores put the Captain's
+      # laptop at 88% memory; asking for more than the box has is the same mistake inverted.
+      - name: build the handshake (static lib + binaries, Metal backend)
+        env:
+          CMAKE_BUILD_PARALLEL_LEVEL: "3"
+        run: |
+          cd rust
+          cargo build --release -j 3 --features model,metal --bin handshake
+
+      # The patch only WARNS when HANDSHAKE_LIB is missing and builds a plain llama-server
+      # anyway. That would be a green run with no handshake in the binary - a pass for the
+      # wrong reason. Fail here instead, before the organ is built.
+      - name: the static library exists
+        run: |
+          test -f rust/target/release/libhandshake.a || { echo "libhandshake.a missing"; exit 1; }
+          ls -la rust/target/release/libhandshake.a
+
+      - name: build the organ
+        env:
+          CMAKE_BUILD_PARALLEL_LEVEL: "3"
+        run: |
+          chmod +x organ/build-organ.sh
+          ./organ/build-organ.sh
+
+      - name: the handshake is actually linked in
+        run: |
+          nm organ/build/bin/llama-server | grep -qi handshake \
+            || { echo "no handshake symbols in llama-server - the organ built WITHOUT the core"; exit 1; }
+          echo "handshake symbols present"
+
+      - name: the organ exists and is arm64
+        run: |
+          test -f organ/build/bin/llama-server
+          file organ/build/bin/llama-server
+          lipo -archs organ/build/bin/llama-server
+
+      - name: package
+        run: |
+          mkdir -p dist
+          cd organ/build/bin
+          zip -r ../../../dist/sarge-organ-macos-arm64.zip llama-server *.metal *.metallib 2>/dev/null || \
+          zip -r ../../../dist/sarge-organ-macos-arm64.zip llama-server
+          cd -
+          shasum -a 256 dist/sarge-organ-macos-arm64.zip
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sarge-organ-macos-arm64
+          path: dist/sarge-organ-macos-arm64.zip
+          if-no-files-found: error
