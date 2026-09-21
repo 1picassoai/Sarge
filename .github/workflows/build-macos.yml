@@ -48,7 +48,11 @@ jobs:
           CMAKE_BUILD_PARALLEL_LEVEL: "3"
         run: |
           cd rust
-          cargo build --release -j 3 --features model,metal --bin handshake
+          # --lib AND --bin: the staticlib the organ links against lives on the LIB target,
+          # so asking for the binary alone builds handshake but no libhandshake.a. Caught by
+          # the guard below on the first CI run, 21 Sep.
+          cargo build --release -j 3 --features model,metal --lib --bin handshake
+          ls -la target/release/ | grep -iE "libhandshake|handshake"
 
       # The patch only WARNS when HANDSHAKE_LIB is missing and builds a plain llama-server
       # anyway. That would be a green run with no handshake in the binary - a pass for the
