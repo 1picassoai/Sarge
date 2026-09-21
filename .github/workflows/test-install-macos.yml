@@ -1,0 +1,93 @@
+name: test the macOS installer
+
+# install.sh has never been run by anyone. This exercises it on a real Apple-silicon
+# machine, which is the only way to test it without owning a Mac.
+#
+# It is NOT a substitute for a person walking the installer. CI has no GPU, so the organ
+# runs on the CPU here and Metal is never exercised. What this catches is the ordinary
+# stuff that kills an installer for a stranger: a bad path, a missing tool, a quoting
+# mistake, an archive that unpacks into the wrong folder.
+
+on:
+  workflow_dispatch:
+    inputs:
+      organ_asset_run:
+        description: "Run ID of a build-macos run whose organ artifact to use (blank = fetch from the release)"
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  install:
+    runs-on: macos-15
+    timeout-minutes: 60
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: src
+
+      - name: shellcheck the installer
+        run: |
+          brew list shellcheck >/dev/null 2>&1 || brew install shellcheck
+          shellcheck -S warning src/install.sh || echo "shellcheck raised warnings (not fatal)"
+
+      # The release for the pinned tag has no macOS organ yet, so the installer cannot
+      # download one. Take the artifact this repo just built instead, and put it exactly
+      # where the installer expects to unpack it.
+      - name: take the organ from a build run
+        if: inputs.organ_asset_run != ''
+        uses: actions/download-artifact@v4
+        with:
+          name: sarge-organ-macos-arm64
+          run-id: ${{ inputs.organ_asset_run }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: organ-zip
+
+      - name: stage the tree the way a stranger would have it
+        run: |
+          mkdir -p work/Sarge
+          cp -R src/. work/Sarge/
+          if [ -f organ-zip/sarge-organ-macos-arm64.zip ]; then
+            mkdir -p work/Sarge/organ/bin
+            unzip -oq organ-zip/sarge-organ-macos-arm64.zip -d work/Sarge/organ/bin
+            chmod +x work/Sarge/organ/bin/llama-server
+            ls -la work/Sarge/organ/bin | head
+          fi
+
+      # The handshake is not in the release archive yet either, so build it here. This is
+      # the one step a stranger would not do - the release carries a prebuilt binary.
+      - name: build the handshake
+        env:
+          CMAKE_BUILD_PARALLEL_LEVEL: "3"
+        run: |
+          cd work/Sarge/rust
+          cargo build --release -j 3 --bin handshake
+          ls -la target/release/handshake
+
+      - name: run the installer
+        run: |
+          cd work/Sarge
+          chmod +x install.sh
+          # A venv, because macos runners refuse a bare pip install into the system Python.
+          python3 -m venv .venv
+          source .venv/bin/activate
+          bash install.sh 2>&1 | tee ../../install-output.txt
+
+      - name: what the installer left behind
+        if: always()
+        run: |
+          cd work/Sarge
+          ls -la start-organ.sh start-console.sh 2>/dev/null || true
+          echo "--- organ.log (tail) ---"
+          tail -30 organ.log 2>/dev/null || echo "(no organ.log)"
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: install-output
+          path: install-output.txt
+          if-no-files-found: warn
