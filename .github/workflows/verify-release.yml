@@ -15,8 +15,18 @@ name: verify release
 #   4. fails on any missing asset, any hash mismatch, or a model hash the two installers
 #      disagree on
 #
-# Proven red before it was trusted: dispatched against v0.1.1, which has no macOS asset
-# and whose installers pin different values, and it failed. Then green on v0.2.0.
+# Proven red before it was trusted, and precisely which branch:
+#   - the TAG gate went red on v0.1.1 (run 35591775978): install.sh does not exist at that
+#     tag, so the installer there could never pin it. A real defect on a shipped tag.
+#   - the HASH-MISMATCH branch has not gone red in CI, because no published tag carries a
+#     wrong pin and a throwaway public tag with bad hashes would be a live trap. It was
+#     executed red OFF-REPO on 21 Sep: the same check() below, the real v0.2.0 asset from
+#     the public URL, a deliberately zeroed pin -> "FAIL ... published d0fdf88e..., installer
+#     pins 0000..." and exit 1; the control with the right pin -> ok. Output is in
+#     CompilerGPT/docs/MAC-RELEASE-BRIEF.md.
+#   - the whole job went green on v0.2.0 (run 35591781509).
+# If you change check(), re-run that off-repo proof. A gate that reads as proven and is not
+# is the failure mode this file exists to close.
 
 on:
   release:
