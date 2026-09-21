@@ -79,6 +79,11 @@ jobs:
           # A venv, because macos runners refuse a bare pip install into the system Python.
           python3 -m venv .venv
           source .venv/bin/activate
+          # -ngl 0 on CI ONLY. The runner has no usable GPU (actions/runner-images 7085),
+          # so asking for 99 GPU layers loads the whole model on 3 CPU cores and the first
+          # run was still loading at four minutes. A real Mac has Metal and unified memory.
+          # This is the one place CI is not testing what a user gets, and it is deliberate.
+          export SARGE_TEST_NGL=0
           bash install.sh 2>&1 | tee ../../install-output.txt
           code=${PIPESTATUS[0]}
           echo "installer exit code: $code"

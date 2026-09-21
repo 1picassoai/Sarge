@@ -193,12 +193,17 @@ good "sarge installed"
 # ------------------------------------------------------------------ 6. your paths
 step "start scripts, with your paths"
 
+# Every layer on the GPU. Metal is not optional on Apple silicon, so 99 is right for
+# every real Mac. SARGE_TEST_NGL exists for CI ONLY, where the runner has no usable GPU
+# and a full load on 3 cores does not finish in any sensible time.
+NGL="${SARGE_TEST_NGL:-99}"
+
 cat > "$HERE/start-organ.sh" <<EOF
 #!/usr/bin/env bash
 # written by install.sh on $(date '+%Y-%m-%d %H:%M')
 exec "$SERVER" \\
   -m "$MODEL_PATH" \\
-  -ngl 99 -c 32768 -np 1 -ctk q8_0 -ctv q8_0 \\
+  -ngl ${NGL} -c 32768 -np 1 -ctk q8_0 -ctv q8_0 \\
   --repeat-penalty 1.1 --repeat-last-n 256 --port 8421 "\$@"
 EOF
 chmod +x "$HERE/start-organ.sh"
@@ -233,7 +238,11 @@ else
   "$HERE/start-organ.sh" >"$HERE/organ.log" 2>&1 &
   ORGAN_PID=$!
   frames='|/-\'
-  for i in $(seq 1 240); do
+  # Eight minutes, not four. On a Mac with Metal the model is ready in seconds; without a
+  # GPU - a CI runner, a VM, an older machine - loading a 2.4GB model on a few cores is
+  # genuinely slow, and the first run is the worst one. Measured on GitHub's 3-core
+  # runner, 21 Sep: still loading at four minutes with no error in the log.
+  for i in $(seq 1 480); do
     [ -t 1 ] && printf "\r  %s loading the model into memory ..." "${frames:$((i % 4)):1}"
     sleep 0.9
     if curl -fsS --max-time 2 http://127.0.0.1:8421/health >/dev/null 2>&1; then UP=1; break; fi
@@ -245,7 +254,7 @@ $(tail -12 "$HERE/organ.log" 2>/dev/null)"
   done
   [ -t 1 ] && printf "\r%44s\r" ""
 fi
-[ "$UP" = "1" ] || die "the organ did not answer on :8421 within four minutes.
+[ "$UP" = "1" ] || die "the organ did not answer on :8421 within eight minutes.
   Run ./start-organ.sh yourself and read organ.log."
 good "organ answering on :8421"
 
