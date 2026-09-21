@@ -88,6 +88,36 @@ jobs:
           file organ/llama-src/build/bin/llama-server
           lipo -archs organ/llama-src/build/bin/llama-server
 
+      # A binary built here records the ABSOLUTE path of every dylib it needs. That path is
+      # this runner's checkout directory and exists nowhere else, so the organ aborted the
+      # instant a stranger started it:
+      #   Reason: tried '/Users/runner/work/Sarge/Sarge/organ/llama-src/build/bin/
+      #   libllama-server-impl.dylib' (no such file)
+      # Caught 21 Sep by running install.sh on CI. Rewrite every install name to
+      # @rpath/<leaf> and add an rpath of @loader_path, so the organ looks for its
+      # libraries BESIDE ITSELF wherever the user unpacked it.
+      - name: make the organ relocatable
+        run: |
+          cd organ/llama-src/build/bin
+          for lib in *.dylib; do
+            install_name_tool -id "@rpath/$lib" "$lib" 2>/dev/null || true
+          done
+          for bin in llama-server *.dylib; do
+            otool -L "$bin" | tail -n +2 | awk '{print $1}' | grep "^/Users/" | while read -r dep; do
+              install_name_tool -change "$dep" "@rpath/$(basename "$dep")" "$bin" 2>/dev/null || true
+            done
+            install_name_tool -add_rpath "@loader_path" "$bin" 2>/dev/null || true
+          done
+          echo "--- after ---"
+          otool -L llama-server
+          echo "--- no absolute build paths may remain ---"
+          if otool -L llama-server *.dylib | grep -q "/Users/runner"; then
+            echo "a build path survived - the organ would not start on another machine"
+            otool -L llama-server *.dylib | grep "/Users/runner"
+            exit 1
+          fi
+          echo "relocatable"
+
       - name: package
         run: |
           mkdir -p dist

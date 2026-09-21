@@ -68,14 +68,22 @@ jobs:
           cargo build --release -j 3 --bin handshake
           ls -la target/release/handshake
 
+      # `| tee` throws away the installer's exit code - the first run of this job reported
+      # SUCCESS while install.sh had died with "the organ exited while loading". A test
+      # that cannot fail is not a test. pipefail, and then check the code explicitly.
       - name: run the installer
         run: |
+          set -o pipefail
           cd work/Sarge
           chmod +x install.sh
           # A venv, because macos runners refuse a bare pip install into the system Python.
           python3 -m venv .venv
           source .venv/bin/activate
           bash install.sh 2>&1 | tee ../../install-output.txt
+          code=${PIPESTATUS[0]}
+          echo "installer exit code: $code"
+          [ "$code" -eq 0 ] || { echo "THE INSTALLER FAILED"; exit "$code"; }
+          grep -q "DONE" ../../install-output.txt || { echo "installer did not reach DONE"; exit 1; }
 
       - name: what the installer left behind
         if: always()
