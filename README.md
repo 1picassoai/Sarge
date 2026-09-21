@@ -36,6 +36,8 @@ thing that leaves your machine, and only if you give it a key.
 
 ## Get started
 
+**Windows x64 today. macOS is in progress.**
+
 One command, in PowerShell:
 
 ```powershell
