@@ -1,0 +1,21 @@
+# Shell scripts and CI workflows MUST be LF in the repository. A .sh with CRLF fails on
+# macOS and Linux with "bad interpreter: /usr/bin/env bash^M", which reads like the file is
+# corrupt rather than mis-checked-out. Today it is LF by luck, not by policy - this makes
+# it policy, whatever core.autocrlf a contributor has set.
+*.sh            text eol=lf
+*.yml           text eol=lf
+*.yaml          text eol=lf
+install.sh      text eol=lf
+
+# Windows scripts stay CRLF: cmd.exe is happier and nothing else reads them.
+*.cmd           text eol=crlf
+*.ps1           text eol=crlf
+
+# Binaries git must not touch.
+*.gguf          binary
+*.zip           binary
+*.dll           binary
+*.dylib         binary
+*.a             binary
+*.lib           binary
+*.exe           binary
