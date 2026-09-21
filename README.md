@@ -36,24 +36,37 @@ thing that leaves your machine, and only if you give it a key.
 
 ## Get started
 
-**Windows x64 today. macOS is in progress.**
+One command.
 
-One command, in PowerShell:
+**Windows x64**, in PowerShell:
 
 ```powershell
 irm https://raw.githubusercontent.com/1picassoai/Sarge/main/install.ps1 | iex
 ```
 
-**What it does, and nothing else:** clones the `v0.1.1` tag into `.\Sarge`, downloads the
-prebuilt organ (46 MB) from this repo's release and the model (2.4 GB) from Hugging Face,
-`pip install`s the Python harness into that clone, writes two start scripts with your own
-paths in them, then starts the organ and **proves the check can catch a known-bad file
-before it tells you it is done.** Nothing is installed system-wide.
+**macOS on Apple silicon**, in a terminal:
 
-The CUDA runtime (405 MB) is fetched only if you have an NVIDIA card and no toolkit already.
-No card, no download, and Sarge runs on the CPU.
+```bash
+curl -fsSL https://raw.githubusercontent.com/1picassoai/Sarge/main/install.sh | bash
+```
 
-Then: `start-organ.cmd`, `start-console.cmd`, and open `http://127.0.0.1:8420`.
+*macOS support is new. It is built and tested on Apple silicon by CI, which has no GPU —
+so the install and the check are proven there, and Metal has never been exercised. No Mac
+speed figures are published for that reason. If it misbehaves on your machine, say so in
+[Discussions](../../discussions) and it gets fixed.*
+
+**What it does, and nothing else:** clones the `v0.2.0` tag into a `Sarge` folder, downloads
+the prebuilt organ for your platform and the model (2.4 GB) from Hugging Face, `pip install`s
+the Python harness into that clone, writes two start scripts with your own paths in them,
+then starts the organ and **proves the check can catch a known-bad file before it tells you
+it is done.** Nothing is installed system-wide.
+
+On Windows the CUDA runtime (405 MB) is fetched only if you have an NVIDIA card and no
+toolkit already. No card, no download, and Sarge runs on the CPU. On Apple silicon Metal
+ships with the OS and nothing extra is downloaded.
+
+Then: `start-organ`, `start-console`, and open `http://127.0.0.1:8420`.
+(`.cmd` on Windows, `.sh` on macOS.)
 
 Prefer to do it by hand? **[The long way, every command explained →](../../wiki/Set-up-with-LangChain)**
 
@@ -61,7 +74,8 @@ Prefer to do it by hand? **[The long way, every command explained →](../../wik
 
 **8 GB RAM and 4 CPU cores.** A GPU makes it faster; it is not required.
 
-Measured on Qwen3-4B (Q4_K_M), the model Sarge runs with, on a quiet machine:
+Measured on Qwen3-4B (Q4_K_M), the model Sarge runs with, on a quiet Windows machine with
+an 8 GB NVIDIA card. No Mac figures yet:
 
 | | 4 cores, no GPU | 8 GB GPU |
 |---|---|---|

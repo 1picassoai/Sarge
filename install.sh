@@ -9,7 +9,7 @@
 set -uo pipefail
 
 REPO="https://github.com/1picassoai/Sarge"
-TAG="v0.1.1"                       # pins the TREE and the ORGAN ASSET together
+TAG="v0.2.0"                       # pins the TREE and the ORGAN ASSET together
 MODEL="Qwen3-4B-Instruct-2507-Q4_K_M.gguf"
 MODEL_URL="https://huggingface.co/unsloth/Qwen3-4B-Instruct-2507-GGUF/resolve/main/$MODEL"
 ORGAN_ASSET="sarge-organ-macos-arm64.zip"
