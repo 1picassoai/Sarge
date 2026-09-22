@@ -4,18 +4,19 @@
 
 ### **Runs on macOS and Windows. One command, either way.**
 
-> **Makes your local model code to a standard.** Sarge ships a book of best-practice rules
-> for Node and Express — taken from the documentation, written as code — and holds a small
-> local model to them. Every file the model writes is judged against the book, by the model
-> itself, and **the run refuses while a rule is broken.** Your repo's own rules sit on top,
-> and a tutor writes new ones from the model's own mistakes.
+> **Stop babysitting your coding agent.** Sarge checks every file it writes against your
+> repository's rules and refuses to run the code until it complies. When the agent breaks
+> the same rule twice, Sarge teaches it the fix — permanently. **The result: a small local
+> model that gets better at coding your repo with every run.**
 
-![The test web UI showing the agent coding in real time when presented with a coding challenge](docs/console.png)
+![One run: the local model writes, the Sarge check judges every file on this machine, the tutor is the one thing that leaves - 17 seconds, ALL ANSWERED](docs/run-animation.gif)
 
-A generic small model writes generic code. It does not know that `express.json()` has to
-be registered before a route reads `req.body`, that `DatabaseSync` is synchronous and
-`await` on it is a bug, or that a write should check its row count before reporting
-success. The book knows — eighty rules, each carrying a wrong line and a right line, because
+Sarge ships a book of best-practice rules for Node and Express — taken from the
+documentation, written as code — and holds a small local model to them. A generic small
+model writes generic code. It does not know that `express.json()` has to be registered
+before a route reads `req.body`, that `DatabaseSync` is synchronous and `await` on it is a
+bug, or that a write should check its row count before reporting success. The book knows —
+sixty-four rules, each carrying a wrong line and a right line, because
 a next-token predictor follows a demonstration better than a description. Sarge is the part
 that makes the model *keep* them: the rules ride at the tail of every turn, the check
 enforces them on every file, and the ones the model breaks anyway are taught back.
