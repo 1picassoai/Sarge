@@ -11,6 +11,16 @@
 
 ![One run: the local model writes, the Sarge check judges every file on this machine, the tutor is the one thing that leaves - 17 seconds, ALL ANSWERED](docs/run-animation.gif)
 
+## Why I built this
+
+Every session with a frontier model started the same way: me explaining how my repo is
+written — the structure, the conventions, the things we never do. It would agree, code for
+a while, and the moment the session ended the explanation was gone. Next session, same
+speech. That cost twice: the tokens to say it, and the frustration of saying it again. A
+rule I have to repeat is not a rule the model holds. Sarge is the part that makes it hold.
+
+## What it does
+
 Sarge ships a book of best-practice rules for Node and Express — taken from the
 documentation, written as code — and holds a small local model to them. A generic small
 model writes generic code. It does not know that `express.json()` has to be registered
