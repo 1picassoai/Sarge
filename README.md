@@ -4,17 +4,24 @@
 
 ### **Runs on macOS and Windows. One command, either way.**
 
-> **Makes your local model better at *your* repo.** A small model on your machine writes
-> the code. Every file it writes is judged against your repo's rules — by the model itself,
-> not a regex — and **the run refuses while a rule is broken.** Break the same rule twice
-> and a tutor writes the correction into the book, so next time the rule is already there.
+> **Makes your local model code to a standard.** Sarge ships a book of best-practice rules
+> for Node and Express — taken from the documentation, written as code — and holds a small
+> local model to them. Every file the model writes is judged against the book, by the model
+> itself, and **the run refuses while a rule is broken.** Your repo's own rules sit on top,
+> and a tutor writes new ones from the model's own mistakes.
 
 ![The test web UI showing the agent coding in real time when presented with a coding challenge](docs/console.png)
 
-A generic small model is fine at generic code. It knows nothing about the conventions of
-*your* codebase — and telling it in a prompt does not make it keep them. Sarge is the part
-that makes a correction survive: the book lives in your repo, grows from your own failures,
-and rides at the tail of every turn.
+A generic small model writes generic code. It does not know that `express.json()` has to
+be registered before a route reads `req.body`, that `DatabaseSync` is synchronous and
+`await` on it is a bug, or that a write should check its row count before reporting
+success. The book knows — eighty rules, each carrying a wrong line and a right line, because
+a next-token predictor follows a demonstration better than a description. Sarge is the part
+that makes the model *keep* them: the rules ride at the tail of every turn, the check
+enforces them on every file, and the ones the model breaks anyway are taught back.
+
+Your own conventions go in a `.sarge` at the repo root — same syntax, seven keywords — and
+override the shipped book wherever they clash.
 
 ![Sarge architecture: your agent hands a task to the harness; the local model writes a file; the check judges it against the book; a hit stops the run; the tutor is the one thing that leaves your machine](docs/architecture.png)
 
