@@ -4,37 +4,26 @@
 
 ### **Runs on macOS and Windows. One command, either way.**
 
-> **Stop babysitting your coding agent.** Sarge checks every file it writes against your
-> repository's rules and refuses to run the code until it complies. When the agent breaks the
-> same rule twice, Sarge teaches it the fix — permanently.
+> **Makes your local model better at *your* repo.** A small model on your machine writes
+> the code. Every file it writes is judged against your repo's rules — by the model itself,
+> not a regex — and **the run refuses while a rule is broken.** Break the same rule twice
+> and a tutor writes the correction into the book, so next time the rule is already there.
 
 ![The test web UI showing the agent coding in real time when presented with a coding challenge](docs/console.png)
 
-## Why I built this
-
-I wrote the rules of my codebase down for my coding agent. It read them, agreed with them,
-and then shipped code that broke them anyway. Sometimes it did not even compile. So I
-reviewed everything it wrote, every time, paying twice: once in tokens for code I could not
-trust, and once in my own hours to find out why. The rules file was not the problem. Nothing
-made the agent *keep* a rule after it had read it.
-
-## What it does
-
-A small model runs on your own machine and writes the code. Every file it writes is judged
-against a rule book that lives in your repo — not by a regex, by the model itself — and
-**the run refuses while a rule is broken.** When it gets the same thing wrong twice, a tutor
-teaches it that rule once, from its own mistake, and writes it into the book. Next time, the
-rule is already there, and it holds.
-
-**Seven tasks on one repo, seven of seven correct.** The same model without Sarge: none.
-**And the check itself: six of seven known faults caught, with one false flag** — it is your
-local model judging a line, so it is only as good as that model. Every failure on the way is
-written down with its cause, most of them ours.
+A generic small model is fine at generic code. It knows nothing about the conventions of
+*your* codebase — and telling it in a prompt does not make it keep them. Sarge is the part
+that makes a correction survive: the book lives in your repo, grows from your own failures,
+and rides at the tail of every turn.
 
 ![Sarge architecture: your agent hands a task to the harness; the local model writes a file; the check judges it against the book; a hit stops the run; the tutor is the one thing that leaves your machine](docs/architecture.png)
 
-Works with **LangChain / LangGraph** and as a **Claude Code hook**. The tutor is the one
-thing that leaves your machine, and only if you give it a key.
+**Seven tasks on one repo, seven of seven correct.** The same model without Sarge: none.
+**The check itself: six of seven known faults caught, with one false flag** — it is your
+local model judging a line, so it is only as good as that model.
+
+Works with **LangChain / LangGraph** and as a **Claude Code hook**. Node and TypeScript.
+The tutor is the one thing that leaves your machine, and only if you give it a key.
 
 ## Get started
 
@@ -68,7 +57,7 @@ people into clicking through a stack of warnings or disabling Gatekeeper system-
 is worse. Notarisation is the real fix and it is on the list.
 
 **What it does, and nothing else:** clones the `v0.2.0` tag into a `Sarge` folder, downloads
-the prebuilt organ for your platform and the model (2.4 GB) from Hugging Face, `pip install`s
+the prebuilt organ for your platform and the model (2.3 GB) from Hugging Face, `pip install`s
 the Python harness into that clone, writes two start scripts with your own paths in them,
 then starts the organ and **proves the check can catch a known-bad file before it tells you
 it is done.** Nothing is installed system-wide.
