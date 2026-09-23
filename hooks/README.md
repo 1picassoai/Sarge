@@ -1,16 +1,17 @@
 # Sarge for Claude Code
 
 Claude Code writes the code. Sarge checks every file it writes against your repo's rules,
-using your own local model, and refuses to let the app run while a rule is broken. No key,
-no network, nothing leaves your machine.
+using your own local model, and refuses to let the app run while a rule is broken. No key
+needed, and nothing leaves your machine: the judge is a model on your own box, and any
+address that is not loopback is refused unless you explicitly allow it.
 
 ## What you get
 
 - **The check on every write.** After `Write`, `Edit` or `MultiEdit`, the organ judges the
   file against `.sarge` and the universal laws. A hit comes back to Claude as the tool's
   own feedback: the rule, the line, and what the rule says instead. Claude fixes it.
-- **The run refuses.** While a hit stands, `dotnet run`, `npm start`, `npm run`, `node`,
-  `python` and friends are blocked with the same message. Fix first, run after.
+- **The run refuses.** While a hit stands, `npm start`, `npm run`, `node`, `python` and
+  friends are blocked with the same message. Fix first, run after.
 - **Your rules, in your words.** `.sarge` at the repo root, git-ignored. Claude Code itself
   is the tutor here: when it gets something wrong twice, ask it to write the rule in the
   Sarge language, with a `wrong |` line and a `right |` line. Copy `book/universal.sarge`

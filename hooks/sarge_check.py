@@ -9,7 +9,7 @@ Two hook events, one script:
       as the tool's own feedback and fixes it. The hit is also left in <repo>/.sarge-hit.
 
   PreToolUse on Bash
-      While .sarge-hit stands, a command that would RUN the app (dotnet run, npm start,
+      While .sarge-hit stands, a command that would RUN the app (npm start, npm run,
       npm run, node, python) is refused with exit 2 and the hit. The run refuses while a
       rule is broken - same law as the harness.
 
