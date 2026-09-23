@@ -86,12 +86,13 @@ Stated plainly, because a tool that hides its limits gets found out by a strange
 - **No stranger has installed this.** Every run has been on our own machines.
 - **The installer builds the handshake from source at the tag**, which is the right shape — the
   binary you get is the tag's, not one of ours, so there is no prebuilt artefact of ours for you
-  to get a stale copy of. It also makes one thing release-critical that has never been tested:
-  **the tag has to compile on a machine that is not ours.** On macOS that means the Apple
-  command-line tools and a Rust install you supply, at whatever versions you happen to have.
-  Every handshake binary that has ever existed was built on one machine, with one toolchain, and
-  that machine runs Windows. If `cargo` fails on your box the install dies at that step with a
-  Rust error, and the installer is not written to explain that.
+  to get a stale copy of. It also makes one thing release-critical:
+  **the tag has to compile on a machine that is not ours.** That has now been done once — a
+  bare clone of the release candidate compiled in 69 seconds from nothing, and the fresh binary
+  carried the code it was supposed to. But that was a Windows toolchain. **On macOS, with the
+  Apple command-line tools and whatever Rust you happen to have, nobody has compiled it.** If
+  `cargo` fails on your box the install dies at that step with a Rust error, and the installer
+  is not written to explain that.
 
   **The organ and the handshake fail in opposite directions.** The organ is a published artefact,
   so it can be stale — the checksum gate covers that. The handshake is built on your machine, so
