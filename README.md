@@ -42,12 +42,6 @@ quietly tell you everything's fine when it hasn't looked.
 curl -fsSL https://raw.githubusercontent.com/1picassoai/Sarge/main/install.sh | bash
 ```
 
-**Linux**, 64-bit:
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/1picassoai/Sarge/main/install-linux.sh | bash
-```
-
 It clones this repo, downloads the engine for your machine, and fetches the model. Then
 start it and leave it running:
 
@@ -67,7 +61,8 @@ That address has to be on your own machine. If it isn't, Sarge says so and uses 
 one anyway — your code doesn't leave by accident because of a pasted URL.
 
 *Windows works too: `irm https://raw.githubusercontent.com/1picassoai/Sarge/main/install.ps1 | iex`
-in PowerShell.*
+in PowerShell. **Linux is being built** — the installer is in the tree and refuses to run
+until it has been proven on a real Linux machine.*
 
 ## The rules
 

@@ -8,6 +8,34 @@
 # model and the start scripts all live in one folder you can delete.
 set -uo pipefail
 
+# ─────────────────────────────────────────────────────────────────────────────
+# NOT RELEASED. This installer does not work yet and refuses to run.
+#
+# @Galahad's blocker, 23 Sep 2026, and he found a third fault neither of us had:
+#
+#   1. TAG pins v0.2.0, not the release this would ship in.
+#   2. ORGAN_ASSET names sarge-organ-linux-x64-cpu.zip, which exists on NO release -
+#      no Linux organ has ever been built. build-linux.yml fires on push to main and
+#      nothing has been pushed.
+#   3. ORGAN_SHA256 is the macOS organ's hash, copy-pasted with the rest of the file.
+#      So even AFTER a Linux organ is built and published, this would download it,
+#      compare it against the Mac hash, refuse it and delete it - the verification
+#      gate working exactly as designed, on a pin that was never corrected.
+#
+# Fixing the build alone would not make this work. Build first, then the pins.
+#
+# It stays in the tree because the work is real and nearly done, and it refuses
+# because an installer that points at a missing asset with a wrong checksum is worse
+# than no installer at all. Shipping it as-is would be the v0.1.1-rc1 class a third
+# time. Delete this block when the three pins above are right AND a Linux organ has
+# been built, published and walked end to end on a real Linux box.
+# ─────────────────────────────────────────────────────────────────────────────
+echo "install-linux.sh is NOT RELEASED and does not work yet." >&2
+echo "No Linux organ has been built. Use install.sh on macOS, or install.ps1 on Windows." >&2
+echo "Follow ${REPO:-https://github.com/1picassoai/Sarge}/discussions for when Linux lands." >&2
+exit 1
+
+
 REPO="https://github.com/1picassoai/Sarge"
 TAG="v0.2.0"                       # pins the TREE and the ORGAN ASSET together
 MODEL="Qwen3-4B-Instruct-2507-Q4_K_M.gguf"
