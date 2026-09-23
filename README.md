@@ -1,109 +1,95 @@
 # Sarge
 
-**Prompts negotiate. Sarge doesn't.**
+**Your agent writes the code. Sarge decides if it runs.**
 
-### **Runs on macOS and Windows. One command, either way.**
+Every file your coding agent writes gets checked against your repo's rules — by a small
+model on your own machine (Qwen3-4B, 2.3 GB). Break a rule and the code doesn't run until
+it's fixed. Break the same rule twice and Sarge writes it down, so next time it's already
+there.
 
-> **Stop babysitting your coding agent.** Sarge checks every file it writes against your
-> repository's rules and refuses to run the code until it complies. When the agent breaks
-> the same rule twice, Sarge teaches it the fix — permanently. **The result: a small local
-> model that gets better at coding your repo with every run.**
+![Sarge catching a bad write and refusing the run](docs/run-animation.gif)
 
-## Why I built this
+## What actually happens
 
-Every session with a frontier model started the same way: me explaining how my repo is
-written — the structure, the conventions, the things we never do. It would agree, code for
-a while, and the moment the session ended the explanation was gone. Next session, same
-speech. That cost twice: the tokens to say it, and the frustration of saying it again. A
-rule I have to repeat is not a rule the model holds. Sarge is the part that makes it hold.
+**Your agent writes a bad file.** Sarge catches it and tells the agent what's wrong. The
+agent fixes it. You didn't have to say anything.
 
-## What it does
+**The agent tries to run the app anyway.** It can't. Nothing runs while a rule is broken —
+that's the whole point.
 
-Sarge ships a book of best-practice rules for Node and Express — taken from the
-documentation, written as code — and holds a small local model to them. A generic small
-model writes generic code. It does not know that `express.json()` has to be registered
-before a route reads `req.body`, that `DatabaseSync` is synchronous and `await` on it is a
-bug, or that a write should check its row count before reporting success. The book knows —
-sixty-four rules, each carrying a wrong line and a right line, because
-a next-token predictor follows a demonstration better than a description. Sarge is the part
-that makes the model *keep* them: the rules ride at the tail of every turn, the check
-enforces them on every file, and the ones the model breaks anyway are taught back.
+**The file gets fixed.** Sarge steps out of the way and the app runs.
 
-Your own conventions go in a `.sarge` at the repo root — same syntax, seven keywords — and
-override the shipped book wherever they clash.
+**Sarge can't check for some reason?** It says so, loudly, every single time. It will never
+quietly tell you everything's fine when it hasn't looked.
 
-![Sarge architecture: your own agent writes a file; the check judges it on your machine against your book; while a rule is broken the run is refused; the tutor is the one thing that leaves](docs/architecture.png)
+![how it fits together](docs/architecture.png)
 
-**Seven tasks on one repo, seven of seven correct.** The same model without Sarge: none.
-**The check itself: six of seven known faults caught, with one false flag** — it is your
-local model judging a line, so it is only as good as that model.
+## How this is different
 
-It is a **hook on the agent you already use** — your agent keeps its own loop, its own
-tools and its own build; Sarge judges the file it writes and refuses the run while a rule
-is broken. Claude Code today. Node and TypeScript. The tutor is the one thing that leaves
-your machine, and only if you give it a key.
+| | AI coding agents | Sarge |
+|---|---|---|
+| where the rules live | in the prompt | in your repo, checked after the file is written |
+| what happens if a rule is broken | nothing | the code doesn't run |
+| who reads the rules | the same model writing the code | a second model, on your machine |
+| do the rules improve | only when you edit them | Sarge writes new ones from what broke |
+| where your code goes | to their servers | nowhere |
 
-## Get started
+## Install
 
-One command.
-
-**Windows x64**, in PowerShell:
-
-```powershell
-irm https://raw.githubusercontent.com/1picassoai/Sarge/main/install.ps1 | iex
-```
-
-**macOS on Apple silicon**, in a terminal:
+**macOS**, Apple silicon:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/1picassoai/Sarge/main/install.sh | bash
 ```
 
-*macOS support is new. It is built and tested on Apple silicon by CI, which has no GPU —
-so the install and the check are proven there, and Metal has never been exercised. No Mac
-speed figures are published for that reason. If it misbehaves on your machine, say so in
-[Discussions](../../discussions) and it gets fixed.*
+**Linux**, 64-bit:
 
-**Every download is checked.** Both installers verify the sha256 of the organ, the model and
-the CUDA runtime against the published hashes, and delete the file and stop on a mismatch.
+```bash
+curl -fsSL https://raw.githubusercontent.com/1picassoai/Sarge/main/install-linux.sh | bash
+```
 
-**One trade-off you should know about, on macOS.** The organ is not yet signed or notarised
-by Apple, so the installer runs `xattr -dr com.apple.quarantine` on the folder it just
-unpacked — and only that folder. Without it macOS shows a security dialog for every library
-in the organ. This is a documented compromise, not a hidden one: the alternative pushes
-people into clicking through a stack of warnings or disabling Gatekeeper system-wide, which
-is worse. Notarisation is the real fix and it is on the list.
+It clones this repo, downloads the engine for your machine, and fetches the model. Then
+start it and leave it running:
 
-**What it does, and nothing else:** clones the `v0.2.0` tag into a `Sarge` folder, downloads
-the prebuilt organ for your platform and the model (2.3 GB) from Hugging Face, writes a
-start script with your own paths in it, then starts the organ and **proves the check can
-catch a known-bad file before it tells you it is done.** Nothing is installed system-wide,
-and nothing is pip-installed.
+```bash
+./start-organ.sh
+```
 
-On Windows the CUDA runtime (405 MB) is fetched only if you have an NVIDIA card and no
-toolkit already. No card, no download, and Sarge runs on the CPU. On Apple silicon Metal
-ships with the OS and nothing extra is downloaded.
+**Switch it on for a repo.** Copy `hooks/settings.example.json` into
+`.claude/settings.json`, and put a `.sarge` file at the repo root — copy
+`book/universal.sarge` if you haven't got one. That's it.
 
-Then start the organ — `start-organ.cmd` on Windows, `./start-organ.sh` on macOS — and
-leave it running.
+**Already running a local model?** Point Sarge at it instead — set `SARGE_ORGAN` to its
+address and skip the 2.3 GB download. Qwen3-4B is what we test on and what we'd recommend,
+but nothing here is tied to it.
 
-**Wire it into your agent.** In the repo you want guarded, copy
-`hooks/settings.example.json` into `.claude/settings.json`, and put a `.sarge` at the
-repo's root (start from `book/universal.sarge`). From then on every file your agent writes
-is judged against your rules, and the run refuses while a rule is broken.
+*Windows works too: `irm https://raw.githubusercontent.com/1picassoai/Sarge/main/install.ps1 | iex`
+in PowerShell.*
 
-## What you need
+## The rules
 
-**8 GB RAM and 4 CPU cores.** A GPU makes it faster; it is not required.
+Sarge comes with **33 rules for Node and Express**, plus 3 that apply to any language. Each
+one is written as real code — a wrong line and a right line — so the model can see the
+difference rather than read about it:
 
-Measured on Qwen3-4B (Q4_K_M), the model Sarge runs with, on a quiet Windows machine with
-an 8 GB NVIDIA card. No Mac figures yet:
+```
+rule config-not-code
+  do     read the database name from configuration
+  never  write a filename or connection string into source
+  wrong  | const db = new DatabaseSync('tools.db');
+  right  | const db = new DatabaseSync(config.database);
+```
 
-| | 4 cores, no GPU | 8 GB GPU |
-|---|---|---|
-| writing code | 11.4 tok/s | 72 tok/s |
-| checking one 2,250-token file | ~70 s | a few seconds |
+Your own rules go in `.sarge` at your repo root. Yours always win.
 
-**It runs on a plain laptop, and it is comfortable on a card.**
+## The numbers
 
-MIT. Bring what your coding agent keeps getting wrong: [Discussions](../../discussions).
+| | |
+|---|---|
+| what you need | 8 GB RAM, 4 cores. A GPU makes it quicker; it isn't required |
+| download | 2.3 GB, almost all of it the model |
+| checking one file | a few seconds on a GPU, about a minute on 4 cores |
+| rules it ships with | 33 for Node, 3 universal |
+| what leaves your machine | nothing, unless you give the tutor a key |
+
+MIT. Something it got wrong? [Discussions](../../discussions).
