@@ -1,0 +1,103 @@
+name: build Linux organ
+
+# The Linux twin of build-macos.yml, and the same reason: nobody here runs Linux, so the
+# only honest way to know the organ builds on it is to build it on one.
+#
+# CPU, deliberately. GitHub's hosted Linux runners have no GPU (actions/runner-images#7085
+# - "impossible due to the runners' design"), so a CUDA build here would compile something
+# that has never once executed. The organ is built for the CPU, which is what it will
+# actually run on for a user without a card, and what CI can genuinely prove.
+#
+# A CUDA build for Linux is a separate artefact and is not claimed until someone with a
+# card has run it.
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "organ/**"
+      - "rust/**"
+      - ".github/workflows/build-linux.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: what we were given
+        run: |
+          uname -m
+          nproc
+          free -g | head -2
+          df -h /
+          cmake --version | head -1
+          cargo --version
+          cc --version | head -1
+
+      - name: build the handshake (static lib + binaries, CPU)
+        env:
+          CMAKE_BUILD_PARALLEL_LEVEL: "4"
+        run: |
+          cd rust
+          # --lib AND --bin: the staticlib the organ links against lives on the LIB target,
+          # so asking for the binary alone builds handshake but no libhandshake.a.
+          # No backend feature: `model` alone is the CPU build.
+          cargo build --release -j 4 --features model --lib --bin handshake
+          ls -la target/release/ | grep -iE "libhandshake|handshake"
+
+      # The patch only WARNS when HANDSHAKE_LIB is missing and builds a plain llama-server
+      # anyway - a green run with no handshake in the binary, which is a pass for the wrong
+      # reason. Fail here instead, before the organ is built.
+      - name: the static library exists
+        run: |
+          test -f rust/target/release/libhandshake.a || { echo "libhandshake.a missing"; exit 1; }
+          ls -la rust/target/release/libhandshake.a
+
+      - name: build the organ
+        env:
+          CMAKE_BUILD_PARALLEL_LEVEL: "4"
+          SARGE_BACKEND: ""     # CPU. See the note at the top.
+        run: |
+          chmod +x organ/build-organ.sh
+          ./organ/build-organ.sh
+
+      # The whole point of the build. A llama-server without the Sarge symbols in it is a
+      # stock llama-server, and would ship as one without this.
+      - name: the Sarge core is actually linked in
+        run: |
+          BIN=organ/llama-src/build/bin/llama-server
+          test -f "$BIN" || { echo "no llama-server at $BIN"; exit 1; }
+          nm -C "$BIN" 2>/dev/null | grep -i handshake | head -5 \
+            || { echo "no handshake symbols in llama-server - the core is NOT compiled in"; exit 1; }
+
+      - name: it starts, and says the core is in
+        run: |
+          BIN=organ/llama-src/build/bin/llama-server
+          "$BIN" --help >/dev/null 2>&1 || { echo "llama-server will not even print help"; exit 1; }
+          echo "llama-server runs"
+
+      - name: package
+        run: |
+          mkdir -p dist
+          cd organ/llama-src/build/bin
+          # Everything beside the binary: llama.cpp on Linux builds shared objects and the
+          # server will not start without them. Packaging llama-server alone would ship a
+          # zip that cannot run - the exact fault the macOS build hit on 21 Sep.
+          zip -r ../../../../dist/sarge-organ-linux-x64-cpu.zip \
+            llama-server *.so* 2>/dev/null || zip -r ../../../../dist/sarge-organ-linux-x64-cpu.zip llama-server
+          cd ../../../..
+          cp rust/target/release/handshake dist/ 2>/dev/null || true
+          unzip -l dist/sarge-organ-linux-x64-cpu.zip
+          sha256sum dist/sarge-organ-linux-x64-cpu.zip
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sarge-organ-linux-x64-cpu
+          path: dist/
+          retention-days: 14

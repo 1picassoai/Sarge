@@ -54,10 +54,19 @@ else
 fi
 cp "$ORGAN/handshake.h" tools/server/
 
+# The GPU backend, decided by the machine and not hardcoded. Metal ships with macOS and is
+# never optional there; on Linux there is no equivalent, so the organ is built for the CPU
+# unless SARGE_BACKEND says otherwise. One script, both platforms - the alternative was a
+# second copy of it, which is a second place for a build flag to drift.
+if [ -z "${SARGE_BACKEND:-}" ]; then
+  if [ "$(uname -s)" = "Darwin" ]; then SARGE_BACKEND="-DGGML_METAL=ON"; else SARGE_BACKEND=""; fi
+fi
+echo "backend: ${SARGE_BACKEND:-CPU}"
+
 echo "=== CONFIGURE $(date +%T) ==="
 cmake -B build -G "Unix Makefiles" \
   -DCMAKE_BUILD_TYPE=Release \
-  -DGGML_METAL=ON \
+  ${SARGE_BACKEND} \
   -DLLAMA_BUILD_SERVER=ON \
   -DLLAMA_BUILD_EXAMPLES=OFF \
   -DLLAMA_BUILD_TESTS=OFF \
