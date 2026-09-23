@@ -47,6 +47,7 @@ pub fn parse(text: &str) -> (Vec<Rule>, Vec<String>) {
     let mut problems = Vec::new();
     let mut cur: Option<(usize, Rule)> = None;
     let mut framed = false;
+    let mut seen_a_rule = false;
 
     for (i, raw) in text.lines().enumerate() {
         let n = i + 1;
@@ -65,7 +66,16 @@ pub fn parse(text: &str) -> (Vec<Rule>, Vec<String>) {
         // a book WE ship - which reads as a broken install on first contact. @Galahad
         // found it on the RC walk, 23 Sep. Nothing was lost (all 33 rules still loaded);
         // what was lost was confidence, and on a first run that is the whole of it.
+        // Scoped, and @Galahad checked the scope on the v0.3.0 walk: `cur.is_none()` means
+        // "not inside a rule", NOT "before the first rule", so the first version accepted a
+        // stack line anywhere between rules. Nothing was weakened - real garbage was still
+        // caught - but the code was looser than the sentence describing it, and a sentence
+        // that is nearly true is how a guard drifts. A book says what it is for once, at
+        // the top, before it says anything else.
         if t.starts_with("stack ") && cur.is_none() {
+            if seen_a_rule {
+                problems.push(format!("line {n}: `stack` belongs at the top of the book, before the first rule"));
+            }
             continue;
         }
         if !framed && cur.is_none() {
@@ -78,6 +88,7 @@ pub fn parse(text: &str) -> (Vec<Rule>, Vec<String>) {
                 problems.push(format!("line {start}: rule `{}` has no `end`", r.id));
             }
             cur = Some((n, blank(id.trim())));
+            seen_a_rule = true;
             continue;
         }
         let Some((start, r)) = cur.as_mut() else {
