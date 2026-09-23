@@ -13,7 +13,8 @@ no network, nothing leaves your machine.
   `python` and friends are blocked with the same message. Fix first, run after.
 - **Your rules, in your words.** `.sarge` at the repo root, git-ignored. Claude Code itself
   is the tutor here: when it gets something wrong twice, ask it to write the rule in the
-  Sarge language (`docs/SARGE-SYNTAX.md`) with a `wrong |` line and a `right |` line.
+  Sarge language, with a `wrong |` line and a `right |` line. Copy `book/universal.sarge`
+  to start.
   From then on the check has eyes for it.
 
 ## Install

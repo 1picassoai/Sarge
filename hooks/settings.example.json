@@ -4,7 +4,7 @@
       {
         "matcher": "Write|Edit|MultiEdit",
         "hooks": [
-          { "type": "command", "command": "python \"%SARGE_HOME%\\hooks\\sarge_check.py\"" }
+          { "type": "command", "command": "python3 \"$SARGE_HOME/hooks/sarge_check.py\"" }
         ]
       }
     ],
@@ -12,7 +12,7 @@
       {
         "matcher": "Bash",
         "hooks": [
-          { "type": "command", "command": "python \"%SARGE_HOME%\\hooks\\sarge_check.py\"" }
+          { "type": "command", "command": "python3 \"$SARGE_HOME/hooks/sarge_check.py\"" }
         ]
       }
     ]

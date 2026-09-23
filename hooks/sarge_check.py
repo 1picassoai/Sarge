@@ -80,7 +80,7 @@ def check(file_path: Path, cwd: Path) -> tuple[bool, str]:
     repo = repo_root(file_path)
     book = repo / ".sarge"
     if not book.is_file():
-        raise NotChecked(f"no .sarge at {repo}. Put a rule book at the repo root (see docs/SARGE-SYNTAX.md).")
+        raise NotChecked(f"no .sarge at {repo}. Put a rule book at the repo root - copy book/universal.sarge to start.")
     rel = os.path.relpath(file_path, repo)
     cmd = [str(exe), "--check", str(repo), "--file", rel, "--repo", repo.name, "--task", "claude-code", "--rules", str(book)]
     try:

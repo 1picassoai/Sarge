@@ -60,9 +60,8 @@ but nothing here is tied to it.
 That address has to be on your own machine. If it isn't, Sarge says so and uses the local
 one anyway — your code doesn't leave by accident because of a pasted URL.
 
-*Windows works too: `irm https://raw.githubusercontent.com/1picassoai/Sarge/main/install.ps1 | iex`
-in PowerShell. **Linux is being built** — the installer is in the tree and refuses to run
-until it has been proven on a real Linux machine.*
+***Linux is coming.*** The installer is in the tree and refuses to run until a Linux organ
+has been built and walked on a real machine.
 
 ## The rules
 

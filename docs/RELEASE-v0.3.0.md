@@ -3,16 +3,15 @@
 **Sarge is now the hook.** A small local model judges every file your coding agent writes
 against your repo's rules, and refuses to let the app run while a rule is broken.
 
-**Runs on macOS (Apple silicon) and Windows x64. One command, either way.**
+**macOS, Apple silicon. One command.**
 
 ```bash
-# macOS
 curl -fsSL https://raw.githubusercontent.com/1picassoai/Sarge/main/install.sh | bash
 ```
-```powershell
-# Windows
-irm https://raw.githubusercontent.com/1picassoai/Sarge/main/install.ps1 | iex
-```
+
+**Linux is coming** — the installer is in the tree and refuses to run until the organ is built
+for it. See *What is not proven*. **Windows is not in this release**; if there is demand for it,
+say so in [Discussions](https://github.com/1picassoai/Sarge/discussions).
 
 ---
 
@@ -47,8 +46,6 @@ unverified is ever installed, unpacked or run.
 
 ```
 sarge-organ-macos-arm64.zip     d0fdf88e5c4bb9467f3dd3a31ba1f3943eb1e915b9eb0e802b180dedd8d8bb61
-sarge-organ-win-x64-cuda13.zip  3d336f87c3be11d3e217c9091922656f943e952188206bf7fba6eb94f3c0c92d
-cudart-win-x64-cuda13.zip       37d27a8ff3366f3f2d264dd693a88b0884f457985f00c9d0a416e74266155012
 Qwen3-4B-Instruct-2507-Q4_K_M   3605803b982cb64aead44f6c1b2ae36e3acdb41d8e46c8a94c6533bc4c67e597
 ```
 
@@ -90,11 +87,11 @@ Stated plainly, because a tool that hides its limits gets found out by a strange
 - **The installer builds the handshake from source at the tag**, which is the right shape — the
   binary you get is the tag's, not one of ours, so there is no prebuilt artefact of ours for you
   to get a stale copy of. It also makes one thing release-critical that has never been tested:
-  **the tag has to compile on a machine that is not ours.** On Windows that means an MSVC
-  toolchain and a Rust install you supply, at whatever versions you happen to have. Every
-  handshake binary that has ever existed was built here, on one machine, with one toolchain. If
-  `cargo` fails on your box the install dies at that step with a Rust error, and the installer
-  is not written to explain that.
+  **the tag has to compile on a machine that is not ours.** On macOS that means the Apple
+  command-line tools and a Rust install you supply, at whatever versions you happen to have.
+  Every handshake binary that has ever existed was built on one machine, with one toolchain, and
+  that machine runs Windows. If `cargo` fails on your box the install dies at that step with a
+  Rust error, and the installer is not written to explain that.
 
   **The organ and the handshake fail in opposite directions.** The organ is a published artefact,
   so it can be stale — the checksum gate covers that. The handshake is built on your machine, so
@@ -117,8 +114,9 @@ real fix and it is on the list.
 
 ## Assets
 
-Two installers and the source. The organ archives are what the installer fetches for you, not
-things to download by hand.
+`install.sh`, `install-linux.sh` and the source. The organ archive is what the installer fetches
+for you, not something to download by hand — its checksum is above if you want to verify it
+yourself.
 
 ---
 
