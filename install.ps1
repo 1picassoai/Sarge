@@ -8,8 +8,7 @@
 #   3. downloads the prebuilt organ from the GitHub release          ~46 MB
 #   4. downloads the CUDA runtime ONLY if you have an NVIDIA card   ~405 MB
 #   5. downloads the model from Hugging Face                        ~2.4 GB
-#   6. pip installs the Python harness into the clone
-#   7. writes start-organ.cmd and start-console.cmd with YOUR paths
+#   6. writes start-organ.cmd with YOUR paths, and the Claude Code hook settings
 #   8. starts the organ and proves the check can catch a known-bad file
 #
 # Nothing is installed system-wide. Nothing leaves your machine. It asks nothing and
@@ -157,7 +156,7 @@ foreach ($c in @("python", "python3", "py")) {
     } catch {}
 }
 if (-not $py) { Stop-With "Python 3.10 or newer is needed and was not found on PATH.`n  https://www.python.org/downloads/" }
-Good "Python: $(& $py --version)"
+Good "Python: $(& $py --version)   (the Claude Code hook is a Python script)"
 
 $drive = (Get-Location).Drive
 if ($drive -and $drive.Free) {
@@ -263,16 +262,6 @@ else {
     Verify-Sha256 $modelPath $MODEL_SHA256 "the model"
 }
 
-# ------------------------------------------------------------------ 5. the harness
-Step "the Python harness"
-
-Push-Location $here
-& $py -m pip install --disable-pip-version-check -q -e python 2>&1 |
-    Where-Object { $_ -match "ERROR|error:" } | ForEach-Object { Write-Host "  $_" -ForegroundColor Red }
-Pop-Location
-if ((& $py -c "import sarge; print('ok')" 2>&1) -notmatch "ok") { Stop-With "the Python package did not import after install." }
-Good "sarge installed"
-
 # ------------------------------------------------------------------ 6. your paths
 Step "start scripts, with your paths"
 
@@ -293,15 +282,6 @@ $cudaLine
   $gpuFlag -c 32768 -np 1 -ctk q8_0 -ctv q8_0 --repeat-penalty 1.1 --repeat-last-n 256 --port 8421 %*
 "@ | Set-Content (Join-Path $here "start-organ.cmd") -Encoding ASCII
 Good "start-organ.cmd"
-
-@"
-@echo off
-REM written by install.ps1
-set "SARGE_HOME=$here"
-cd /d "$here"
-$py tools\console.py %*
-"@ | Set-Content (Join-Path $here "start-console.cmd") -Encoding ASCII
-Good "start-console.cmd"
 
 setx SARGE_HOME $here | Out-Null
 $env:SARGE_HOME = $here
@@ -349,7 +329,13 @@ Write-Host @"
   DONE.
 
     start-organ.cmd      the model, on :8421   (leave it running)
-    start-console.cmd    the page, on :8420    - a folder, a task, Run
+
+  Now wire it into Claude Code, in the repo you want guarded:
+    copy hooks\settings.example.json  ->  .claude\settings.json
+    and put a .sarge at that repo's root (start from book\universal.sarge)
+
+  From then on every file Claude Code writes is judged against your rules,
+  and the run refuses while a rule is broken.
 
   Optional - the tutor is the one thing that leaves your machine:
     setx ANTHROPIC_API_KEY sk-ant-...

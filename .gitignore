@@ -1,14 +1,17 @@
 # The organ: a llama.cpp clone with its CUDA build tree. Gigabytes, and its own git.
 organ/llama-src/
 
-# Build output
-agent/**/bin/
-agent/**/obj/
+# Build output. The paths moved under testing/ on 23 Sep when everything that is not
+# the product was stripped out of the root - the ignores have to move with them, or a
+# virtualenv walks into the history. It nearly did.
+testing/agent/**/bin/
+testing/agent/**/obj/
 rust/target/
-python/.venv/
-python/**/__pycache__/
-python/*.egg-info/
-python/build/
+testing/python/.venv/
+testing/**/__pycache__/
+testing/python/*.egg-info/
+testing/python/build/
+testing/**/node_modules/
 book/shopfloor/bin/
 book/shopfloor/obj/
 book/shopfloor/*.db

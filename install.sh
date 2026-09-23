@@ -218,16 +218,6 @@ else
   good "model downloaded"
 fi
 
-# ------------------------------------------------------------------ 5. the harness
-step "the Python harness"
-
-( cd "$HERE" && "$PY" -m pip install --disable-pip-version-check -q -e python 2>&1 | grep -iE "ERROR|error:" || true )
-"$PY" -c "import sarge" >/dev/null 2>&1 \
-  || die "the Python package did not import after install.
-  If pip refused with 'externally-managed-environment', make a venv first:
-    python3 -m venv .venv && source .venv/bin/activate, then run this again."
-good "sarge installed"
-
 # ------------------------------------------------------------------ 6. your paths
 step "start scripts, with your paths"
 
@@ -246,16 +236,6 @@ exec "$SERVER" \\
 EOF
 chmod +x "$HERE/start-organ.sh"
 good "start-organ.sh"
-
-cat > "$HERE/start-console.sh" <<EOF
-#!/usr/bin/env bash
-# written by install.sh
-export SARGE_HOME="$HERE"
-cd "$HERE"
-exec $PY tools/console.py "\$@"
-EOF
-chmod +x "$HERE/start-console.sh"
-good "start-console.sh"
 
 export SARGE_HOME="$HERE"
 say "SARGE_HOME=$HERE  (add it to your shell profile to keep it)"
@@ -311,7 +291,13 @@ cat <<EOF
   ${C_WH}DONE.${C_NC}
 
     ./start-organ.sh      the model, on :8421   (leave it running)
-    ./start-console.sh    the page, on :8420    - a folder, a task, Run
+
+  Now wire it into Claude Code, in the repo you want guarded:
+    cp hooks/settings.example.json  ->  .claude/settings.json
+    and put a .sarge at that repo's root (start from book/universal.sarge)
+
+  From then on every file Claude Code writes is judged against your rules,
+  and the run refuses while a rule is broken.
 
   Optional - the tutor is the one thing that leaves your machine:
     export ANTHROPIC_API_KEY=sk-ant-...

@@ -9,8 +9,6 @@
 > the same rule twice, Sarge teaches it the fix — permanently. **The result: a small local
 > model that gets better at coding your repo with every run.**
 
-![One run: the local model writes, the Sarge check judges every file on this machine, the tutor is the one thing that leaves - 17 seconds, ALL ANSWERED](docs/run-animation.gif)
-
 ## Why I built this
 
 Every session with a frontier model started the same way: me explaining how my repo is
@@ -34,14 +32,16 @@ enforces them on every file, and the ones the model breaks anyway are taught bac
 Your own conventions go in a `.sarge` at the repo root — same syntax, seven keywords — and
 override the shipped book wherever they clash.
 
-![Sarge architecture: your agent hands a task to the harness; the local model writes a file; the check judges it against the book; a hit stops the run; the tutor is the one thing that leaves your machine](docs/architecture.png)
+![Sarge architecture: your own agent writes a file; the check judges it on your machine against your book; while a rule is broken the run is refused; the tutor is the one thing that leaves](docs/architecture.png)
 
 **Seven tasks on one repo, seven of seven correct.** The same model without Sarge: none.
 **The check itself: six of seven known faults caught, with one false flag** — it is your
 local model judging a line, so it is only as good as that model.
 
-Works with **LangChain / LangGraph** and as a **Claude Code hook**. Node and TypeScript.
-The tutor is the one thing that leaves your machine, and only if you give it a key.
+It is a **hook on the agent you already use** — your agent keeps its own loop, its own
+tools and its own build; Sarge judges the file it writes and refuses the run while a rule
+is broken. Claude Code today. Node and TypeScript. The tutor is the one thing that leaves
+your machine, and only if you give it a key.
 
 ## Get started
 
@@ -75,19 +75,22 @@ people into clicking through a stack of warnings or disabling Gatekeeper system-
 is worse. Notarisation is the real fix and it is on the list.
 
 **What it does, and nothing else:** clones the `v0.2.0` tag into a `Sarge` folder, downloads
-the prebuilt organ for your platform and the model (2.3 GB) from Hugging Face, `pip install`s
-the Python harness into that clone, writes two start scripts with your own paths in them,
-then starts the organ and **proves the check can catch a known-bad file before it tells you
-it is done.** Nothing is installed system-wide.
+the prebuilt organ for your platform and the model (2.3 GB) from Hugging Face, writes a
+start script with your own paths in it, then starts the organ and **proves the check can
+catch a known-bad file before it tells you it is done.** Nothing is installed system-wide,
+and nothing is pip-installed.
 
 On Windows the CUDA runtime (405 MB) is fetched only if you have an NVIDIA card and no
 toolkit already. No card, no download, and Sarge runs on the CPU. On Apple silicon Metal
 ships with the OS and nothing extra is downloaded.
 
-Then: `start-organ`, `start-console`, and open `http://127.0.0.1:8420`.
-(`.cmd` on Windows, `.sh` on macOS.)
+Then start the organ — `start-organ.cmd` on Windows, `./start-organ.sh` on macOS — and
+leave it running.
 
-Prefer to do it by hand? **[The long way, every command explained →](../../wiki/Set-up-with-LangChain)**
+**Wire it into your agent.** In the repo you want guarded, copy
+`hooks/settings.example.json` into `.claude/settings.json`, and put a `.sarge` at the
+repo's root (start from `book/universal.sarge`). From then on every file your agent writes
+is judged against your rules, and the run refuses while a rule is broken.
 
 ## What you need
 
