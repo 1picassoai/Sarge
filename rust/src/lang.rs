@@ -3,8 +3,12 @@
 //! speaks. (AIML was the working name for a day; it is a 2001 chatbot format, binned.)
 //! Files are `.sarge`. The parser does not care what the file is called.
 //!
-//! Universal like SQL: nine words, the same in every repo and every programming language.
+//! Universal like SQL: the same words in every repo and every programming language.
 //! What a file applies to is where it sits. No scope in the syntax.
+//!
+//! One word belongs to the BOOK rather than to a rule: `stack <markers>`, between the
+//! frame and the first rule, saying what the book is FOR. The engine names no
+//! language - a book declares its own markers and the matching one loads.
 //!
 //!     === sarge ===
 //!
@@ -51,6 +55,19 @@ pub fn parse(text: &str) -> (Vec<Rule>, Vec<String>) {
         if t.is_empty() { continue; }
         if t == OPEN { framed = true; continue; }
         if t == CLOSE { framed = false; continue; }
+        // `stack <markers>` - a book saying what it is FOR, between the frame and the
+        // first rule. The engine names no language; a book declares its own markers and
+        // whichever book matches the repo or the task is the one that loads. It belongs to
+        // the BOOK, not to a rule, so it sits outside them.
+        //
+        // It was written into book/node.sarge before the parser knew the word, so every
+        // user running against the shipped book saw "skipped a malformed rule, line 3" on
+        // a book WE ship - which reads as a broken install on first contact. @Galahad
+        // found it on the RC walk, 23 Sep. Nothing was lost (all 33 rules still loaded);
+        // what was lost was confidence, and on a first run that is the whole of it.
+        if t.starts_with("stack ") && cur.is_none() {
+            continue;
+        }
         if !framed && cur.is_none() {
             problems.push(format!("line {n}: outside the frame ({OPEN} … {CLOSE}): `{t}`"));
             continue;
