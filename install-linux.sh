@@ -32,7 +32,10 @@ set -uo pipefail
 # ─────────────────────────────────────────────────────────────────────────────
 echo "install-linux.sh is NOT RELEASED and does not work yet." >&2
 echo "No Linux organ has been built. Use install.sh on macOS, or install.ps1 on Windows." >&2
-echo "Follow ${REPO:-https://github.com/1picassoai/Sarge}/discussions for when Linux lands." >&2
+# Hardcoded, not ${REPO:-...}. @Galahad, 23 Sep: REPO is not set until four lines
+# BELOW this guard, so the default was doing the work and the guard had an untested
+# branch of its own. A refusal must not depend on anything after it.
+echo "Follow https://github.com/1picassoai/Sarge/discussions for when Linux lands." >&2
 exit 1
 
 
