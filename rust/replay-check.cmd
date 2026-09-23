@@ -9,13 +9,10 @@ REM at two repos on one machine, and could not be re-run by anyone else.)
 cd /d "%~dp0"
 set "H=target\release\handshake.exe"
 set "D=tests\judge"
-set "CS=%~dp0tests\judge\csharp.sarge"
+REM The C# half was archived on 22 Sep - the Captain's ruling that Sarge releases for Node
+REM only. The fixtures and csharp.sarge are whole in docs\archive\csharp-fixtures\ with the
+REM reason; restoring them restores this block. Nothing else referenced them.
 set "JS=%~dp0tests\judge\node.sarge"
-echo === C# files against tests\judge\csharp.sarge (+ book\universal.sarge) ===
-for %%f in (cs-ensuredeleted-bad.cs cs-ensuredeleted-good.cs cs-newcontext-bad.cs cs-appservices-bad.cs cs-addcontrollers-bad.cs cs-clean-good.cs) do (
-  echo --- %%f
-  %H% --check "%D%" --file %%f --repo judge --rules "%CS%"
-)
 echo === JS files against tests\judge\node.sarge (+ book\universal.sarge) ===
 for %%f in (js-hardcoded-db-bad.js js-await-sync-bad.js js-clean-good.js js-hardcoded-table-bad.jsx) do (
   echo --- %%f

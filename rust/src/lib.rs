@@ -28,7 +28,14 @@ pub mod tutor;
 pub mod lang;
 pub mod verdict;
 
-pub const MAX_RULES: usize = 5;
+/// How many rules reach the model in one delivery. Five was right when a book held three
+/// rules of its own; with a shipped stack book under it, five leaves out the rule that
+/// decides the task (22 Sep: `no-await-on-a-sync-call` missed the cut on a node:sqlite
+/// task, which is the exact fault that had cancelled a run that morning). Twelve is room
+/// for the stack's rules AND the repo's own without the wall of thirty-eight that stalled
+/// a model for 120 turns. The check has its own, larger cap - it judges one file, not a
+/// whole task.
+pub const MAX_RULES: usize = 12;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Check {

@@ -1,0 +1,289 @@
+=== sarge ===
+
+stack  package.json .js .mjs .ts .tsx node express node:sqlite javascript typescript
+
+rule databasesync-is-not-sqlite3
+  do     use prepare/run/get/all on the statement, and exec for DDL, with no callback
+  never  call a sqlite3 method on a node:sqlite DatabaseSync
+  wrong  | db.serialize(() => { db.run('CREATE TABLE tools (id INTEGER)'); });
+  wrong  | db.run('INSERT INTO tools (name, price) VALUES (?, ?)', [name, price], function (err) {});
+  wrong  | db.all('SELECT * FROM tools', (err, rows) => { res.json(rows); });
+  right  | db.exec('CREATE TABLE IF NOT EXISTS tools (id INTEGER PRIMARY KEY, name TEXT NOT NULL, price REAL NOT NULL)');
+  right  | const info = db.prepare('INSERT INTO tools (name, price) VALUES (?, ?)').run(name, price);
+  right  | const rows = db.prepare('SELECT id, name, price FROM tools').all();
+  since  2026-09-22 merlin · nodejs.org/api/sqlite.html - DatabaseSync has no run, all or serialize
+end
+
+rule use-node-prefix-for-builtins
+  do     import built-in modules with the node: prefix
+  never  import a built-in module by bare name when a node: specifier exists
+  wrong  | import fs from 'fs';
+  wrong  | const path = require('path');
+  right  | import fs from 'node:fs';
+  right  | import { readFile } from 'node:fs/promises';
+  since  2026-09-22 merlin · nodejs.org/api/esm.html#node-imports
+end
+
+rule no-sync-fs-in-a-request
+  do     use the promise API for file work inside a handler
+  never  call readFileSync, writeFileSync or existsSync inside a request handler
+  wrong  | app.get('/tools', (req, res) => { const raw = fs.readFileSync('./data.json'); res.json(JSON.parse(raw)); });
+  right  | app.get('/tools', async (req, res) => { const raw = await readFile('./data.json', 'utf8'); res.json(JSON.parse(raw)); });
+  allow  a sync call at startup, before the server begins listening
+  since  2026-09-22 merlin · nodejs.org/api/fs.html - the synchronous APIs block the event loop
+end
+
+rule await-every-promise
+  do     await a promise, or return it, so a rejection is seen
+  never  call an async function and drop the promise on the floor
+  wrong  | doWork();
+  wrong  | fs.promises.writeFile(path, data);
+  right  | await doWork();
+  right  | await fs.promises.writeFile(path, data);
+  since  2026-09-22 merlin · nodejs.org/api/process.html#event-unhandledrejection
+end
+
+rule no-await-on-a-sync-call
+  do     call a synchronous API directly
+  never  put await in front of a function that returns no promise
+  wrong  | const row = await db.prepare('SELECT 1').get();
+  wrong  | await db.exec('CREATE TABLE t (id INTEGER)');
+  right  | const row = db.prepare('SELECT 1').get();
+  right  | db.exec('CREATE TABLE t (id INTEGER)');
+  since  2026-09-22 merlin · nodejs.org/api/sqlite.html - DatabaseSync is synchronous throughout
+end
+
+rule parameterise-every-query
+  do     pass values as bound parameters
+  never  build a SQL string by concatenating or interpolating a value
+  wrong  | db.prepare(`SELECT * FROM tools WHERE name = '${name}'`).get();
+  wrong  | db.exec('DELETE FROM tools WHERE id = ' + id);
+  right  | db.prepare('SELECT * FROM tools WHERE name = ?').get(name);
+  since  2026-09-22 merlin · nodejs.org/api/sqlite.html#statementrunanonymousparameters
+end
+
+rule no-internal-detail-in-an-error-response
+  do     answer a failure with a plain message and log the detail
+  never  send a stack trace or a raw driver message to the client
+  wrong  | res.status(500).json({ error: err.stack });
+  right  | console.error(err); res.status(500).json({ error: 'internal error' });
+  since  2026-09-22 merlin · expressjs.com/en/advanced/best-practice-security.html
+end
+
+rule throw-errors-not-strings
+  do     throw an Error
+  never  throw a string or a plain object
+  wrong  | throw 'tool not found';
+  right  | throw new Error('tool not found');
+  since  2026-09-22 merlin · nodejs.org/api/errors.html - only an Error carries a stack
+end
+
+rule port-from-the-environment
+  do     read the port from process.env.PORT with a fallback
+  never  hardcode the port the server listens on
+  wrong  | app.listen(3000);
+  right  | const PORT = process.env.PORT || 3000; app.listen(PORT);
+  since  2026-09-22 merlin · expressjs.com/en/advanced/best-practice-performance.html
+end
+
+rule no-console-log-for-errors
+  do     report a failure on stderr, or through a logger
+  never  report an error with console.log
+  wrong  | console.log('failed to open the database', err);
+  right  | console.error('failed to open the database', err);
+  since  2026-09-22 merlin · nodejs.org/api/console.html - console.log writes to stdout, console.error to stderr
+end
+
+rule no-require-in-a-module
+  do     use import in a package whose type is module
+  never  call require in an ES module
+  wrong  | const express = require('express');
+  right  | import express from 'express';
+  since  2026-09-22 merlin · nodejs.org/api/esm.html - require is not defined in an ES module scope
+end
+
+rule no-dirname-in-a-module
+  do     use import.meta.dirname for a path relative to this file
+  never  use __dirname or __filename in an ES module
+  wrong  | const file = path.join(__dirname, 'tools.db');
+  right  | const file = path.join(import.meta.dirname, 'tools.db');
+  since  2026-09-22 merlin · nodejs.org/api/esm.html#importmetadirname
+end
+
+rule build-paths-with-path-join
+  do     build a file path with path.join
+  never  concatenate path segments with a slash
+  wrong  | const file = dir + '/' + name + '.json';
+  right  | const file = path.join(dir, `${name}.json`);
+  since  2026-09-22 merlin · nodejs.org/api/path.html
+end
+
+rule one-route-one-definition
+  do     define each method and path once
+  never  register the same method and path twice
+  wrong  | app.get('/tools', listTools); app.get('/tools', listToolsAgain);
+  right  | app.get('/tools', listTools);
+  since  2026-09-22 merlin · expressjs.com/en/guide/routing.html - the first matching handler wins
+end
+
+rule promise-all-for-independent-work
+  do     run independent async work with Promise.all
+  never  await a series of independent promises one after another
+  wrong  | const a = await loadTools(); const b = await loadPrices();
+  right  | const [a, b] = await Promise.all([loadTools(), loadPrices()]);
+  allow  a sequence where the second call needs the first one's result
+  since  2026-09-22 merlin · nodejs.org/api/globals.html - sequential awaits serialise unrelated work
+end
+
+rule no-await-inside-a-loop
+  do     collect the promises and await them together
+  never  await inside a for loop over independent items
+  wrong  | for (const id of ids) { results.push(await load(id)); }
+  right  | const results = await Promise.all(ids.map(id => load(id)));
+  allow  a loop that must run in order, such as a paged fetch or a rate-limited call
+  since  2026-09-22 merlin · nodejs.org/api/globals.html
+end
+
+rule set-explicit-content-type-for-non-json
+  do     set the content type when the body is not JSON
+  never  send a non-JSON body with no content type
+  wrong  | res.send(csv);
+  right  | res.type('text/csv').send(csv);
+  since  2026-09-22 merlin · expressjs.com/en/api.html#res.type
+end
+
+rule no-secrets-in-source
+  do     read configuration and secrets from the environment or a config file
+  never  write a key, password, token or hostname into source
+  wrong  | const key = 'sk-live-4f9a2b';
+  wrong  | const conn = 'Server=prod-01;Password=hunter2';
+  wrong  | const db = new DatabaseSync(path.join(import.meta.dirname, 'tools.db'));
+  right  | const key = process.env.API_KEY;
+  right  | const db = new DatabaseSync(path.join(import.meta.dirname, config.database));
+  since  2026-09-22 merlin · nodejs.org/api/process.html#processenv
+end
+
+rule stream-large-files
+  do     pipe a large file to the response
+  never  read a whole file into memory to send it
+  wrong  | const buf = await readFile(big); res.send(buf);
+  right  | createReadStream(big).pipe(res);
+  right  | await pipeline(createReadStream(big), res);
+  since  2026-09-22 merlin · nodejs.org/api/stream.html
+end
+
+rule use-pipeline-not-pipe
+  do     join streams with pipeline so errors and cleanup are handled
+  never  chain .pipe() calls and leave the failure path unhandled
+  wrong  | createReadStream(src).pipe(gzip).pipe(createWriteStream(dst));
+  right  | await pipeline(createReadStream(src), gzip, createWriteStream(dst));
+  since  2026-09-22 merlin · nodejs.org/api/stream.html#streampipelinesource-transforms-destination-callback - pipe does not destroy the source on error
+end
+
+rule idempotent-methods-do-not-write
+  do     use POST, PUT, PATCH or DELETE for anything that changes state
+  never  change state in a GET or HEAD handler
+  wrong  | app.get('/tools/:id/delete', (req, res) => { remove(req.params.id); res.json({ ok: true }); });
+  right  | app.delete('/tools/:id', (req, res) => { remove(req.params.id); res.status(204).end(); });
+  since  2026-09-22 merlin · developer.mozilla.org/docs/Web/HTTP/Methods - GET is safe by definition
+end
+
+rule 204-carries-no-body
+  do     end a 204 with no body
+  never  send JSON alongside a 204 status
+  wrong  | res.status(204).json({ ok: true });
+  right  | res.status(204).end();
+  since  2026-09-22 merlin · developer.mozilla.org/docs/Web/HTTP/Status/204
+end
+
+rule 401-is-not-403
+  do     answer 401 when the caller is unauthenticated and 403 when they are authenticated but not allowed
+  never  use one of them for both cases
+  wrong  | if (!user) return res.status(403).end();
+  right  | if (!user) return res.status(401).end(); if (!user.canEdit) return res.status(403).end();
+  since  2026-09-22 merlin · developer.mozilla.org/docs/Web/HTTP/Status/401
+end
+
+rule no-eval-of-input
+  do     parse input with a parser
+  never  pass a value from a request to eval or the Function constructor
+  wrong  | const result = eval(req.query.expr);
+  right  | const result = Number.parseFloat(req.query.expr);
+  since  2026-09-22 merlin · expressjs.com/en/advanced/best-practice-security.html
+end
+
+rule no-shell-with-user-input
+  do     spawn a process with an argument array
+  never  build a shell command string from a request value
+  wrong  | exec(`convert ${req.body.file} out.png`);
+  right  | execFile('convert', [req.body.file, 'out.png']);
+  since  2026-09-22 merlin · nodejs.org/api/child_process.html#child_processexeccommand-options-callback - exec runs a shell
+end
+
+rule hash-passwords
+  do     store a password as a slow hash with a per-record salt
+  never  store a password in plain text or as a bare digest
+  wrong  | db.prepare('INSERT INTO users (email, password) VALUES (?, ?)').run(email, password);
+  wrong  | const hash = createHash('sha256').update(password).digest('hex');
+  right  | const hash = await bcrypt.hash(password, 12);
+  since  2026-09-22 merlin · expressjs.com/en/advanced/best-practice-security.html
+end
+
+rule compare-secrets-in-constant-time
+  do     compare a token or signature with timingSafeEqual
+  never  compare a secret with ===
+  wrong  | if (token === process.env.API_TOKEN) next();
+  right  | if (timingSafeEqual(Buffer.from(token), Buffer.from(process.env.API_TOKEN))) next();
+  since  2026-09-22 merlin · nodejs.org/api/crypto.html#cryptotimingsafeequala-b
+end
+
+rule random-from-crypto
+  do     generate a token or id with the crypto module
+  never  use Math.random for anything that must be unguessable
+  wrong  | const token = Math.random().toString(36).slice(2);
+  right  | const token = randomBytes(32).toString('hex');
+  right  | const id = randomUUID();
+  since  2026-09-22 merlin · nodejs.org/api/crypto.html#cryptorandomuuidoptions
+end
+
+rule disable-the-framework-banner
+  do     remove the header that names the framework
+  never  advertise the server technology to every caller
+  wrong  | const app = express();
+  right  | const app = express(); app.disable('x-powered-by');
+  since  2026-09-22 merlin · expressjs.com/en/advanced/best-practice-security.html
+end
+
+rule explicit-cors-origins
+  do     name the origins allowed to call the API
+  never  reflect any origin with a wildcard on an API that carries credentials
+  wrong  | app.use(cors());
+  right  | app.use(cors({ origin: config.allowedOrigins, credentials: true }));
+  since  2026-09-22 merlin · expressjs.com/en/resources/middleware/cors.html
+end
+
+rule nullish-coalescing-for-defaults
+  do     default a value with ??
+  never  default with || when zero or an empty string is valid
+  wrong  | const limit = req.query.limit || 20;
+  right  | const limit = req.query.limit ?? 20;
+  since  2026-09-22 merlin · developer.mozilla.org - || also replaces 0 and ''
+end
+
+rule no-array-index-as-a-key
+  do     key a rendered row by its identity
+  never  use the array index as the key of a list item
+  wrong  | {tools.map((t, i) => <li key={i}>{t.name}</li>)}
+  right  | {tools.map(t => <li key={t.id}>{t.name}</li>)}
+  since  2026-09-22 merlin · react.dev/learn/rendering-lists
+end
+
+rule iso-strings-for-time
+  do     store and send a timestamp as an ISO string or epoch milliseconds
+  never  store a locale-formatted date
+  wrong  | db.prepare('INSERT INTO events (at) VALUES (?)').run(new Date().toLocaleString());
+  right  | db.prepare('INSERT INTO events (at) VALUES (?)').run(new Date().toISOString());
+  since  2026-09-22 merlin · developer.mozilla.org - toLocaleString is not parseable back
+end
+
+=== end sarge ===

@@ -11,7 +11,9 @@ use std::path::{Component, Path, PathBuf};
 
 use serde::Serialize;
 
-pub const CODE_EXT: &[&str] = &["cs", "csproj", "json", "md", "sln", "props",
+// Node and TypeScript only - the Captain's ruling, 22 Sep. The C# extensions (cs, csproj,
+// sln, props) came out with the rest of the .NET path.
+pub const CODE_EXT: &[&str] = &["json", "md",
                                  "js", "mjs", "cjs", "jsx", "ts", "tsx", "html", "css"];   // Node series, 16 Sep
 
 #[derive(Debug, Clone, Serialize)]
@@ -75,7 +77,10 @@ pub fn safe_target(root: &Path, rel: &str) -> Option<PathBuf> {
 /// into one clever pattern once broke the first and both arms wrote nothing.
 pub fn write_files(root: &Path, text: &str) -> Vec<Written> {
     let re = regex::Regex::new(
-        r"(?s)(?:^|\n)[ \t]*(?:(?://|#|<!--)[ \t]*File:[ \t]*[`*]{0,2}([^\s`*<>|]+?)[`*]{0,2}[ \t]*(?:-->)?|#{1,6}[ \t]*[^\n`]*?[`*]{1,2}([^\s`*<>|]+?\.(?:cs|csproj|json|sln|props))[`*]{1,2}[^\n]*)[ \t]*\n+```[a-zA-Z#+]*[ \t]*\n(.*?)```",
+        // The heading arm's extension list was cs|csproj|json|sln|props and named no Node
+        // file at all, so a `### **server.js**` heading never wrote anything. Node and
+        // TypeScript now, per the Captain's ruling of 22 Sep.
+        r"(?s)(?:^|\n)[ \t]*(?:(?://|#|<!--)[ \t]*File:[ \t]*[`*]{0,2}([^\s`*<>|]+?)[`*]{0,2}[ \t]*(?:-->)?|#{1,6}[ \t]*[^\n`]*?[`*]{1,2}([^\s`*<>|]+?\.(?:js|mjs|cjs|jsx|ts|tsx|json|html|css))[`*]{1,2}[^\n]*)[ \t]*\n+```[a-zA-Z#+]*[ \t]*\n(.*?)```",
     )
     .expect("file-block pattern");
     let _ = std::fs::create_dir_all(root);
@@ -123,7 +128,9 @@ pub fn tree(root: &Path) -> Vec<Entry> {
                 }
             } else if let Some(ext) = p.extension() {
                 let ext = ext.to_string_lossy().to_lowercase();
-                if matches!(ext.as_str(), "cs" | "csproj" | "json" | "sln") {
+                // Was cs/csproj/json/sln, which listed nothing useful in a Node repo -
+                // the C# cut of 22 Sep made that plain.
+                if matches!(ext.as_str(), "js" | "mjs" | "cjs" | "jsx" | "ts" | "tsx" | "json") {
                     let bytes = e.metadata().map(|m| m.len()).unwrap_or(0);
                     out.push(Entry {
                         path: p.strip_prefix(root).unwrap_or(&p).to_string_lossy().replace('\\', "/"),

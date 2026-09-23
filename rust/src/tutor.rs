@@ -55,6 +55,26 @@ language: rule do never wrong right allow since end, and the frame. `do` comes f
 rule without a demonstration is a slogan. Two spaces of indent inside the rule. Nothing
 else in the fence.
 
+THE ONE TEST YOUR RULE MUST PASS. The rule is enforced by a judge that sees ONE LINE at a
+time, with two lines above it and five below, and asks: is this line doing what the
+`wrong` example does, or what the `right` example does? So:
+
+  - `wrong` and `right` must differ IN THE LINE ITSELF, by something visible on it. The
+    same statement with `await` and without it is a good pair. A bare call against a
+    whole try/catch block is not - the judge cannot see the block.
+  - Never write a rule whose proof lives ELSEWHERE in the file: middleware registered at
+    the top, a response sent further down a branch, a `changes === 0` on the next line, a
+    handler declared before it is mounted. The judge cannot see any of it, so the rule
+    fires on correct code and the model loops trying to fix what is already right.
+  - Ask before you write it: if I showed the judge the `right` line on its own, could it
+    tell that line from the `wrong` one? If not, write no rule and say so in the
+    correction.
+
+This is not style advice. On 22 Sep a rule whose `wrong` was `const rows = await
+stmt.all();` and whose `right` was a full `db.prepare(...).all()` chain flagged the
+correct line `const rows = stmt.all();`, and the model spent an entire run failing to fix
+code that was already right. A rule that cannot be judged is worse than no rule.
+
 If nothing went wrong, say so in the correction and write no rule.
 Never include file contents, secrets, customer names or company names in a rule."#;
 

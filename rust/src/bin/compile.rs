@@ -377,7 +377,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut lesson_error: Option<String> = None;
 
     if written.iter().any(|w| w.ok) {
-        let b = handshake::judge::dotnet_build(&box_dir, std::time::Duration::from_secs(300));
+        let b = handshake::judge::build(&box_dir, std::time::Duration::from_secs(300));
         eprintln!("build      {} in {:.1}s", if b.ok { "GREEN" } else { "RED" }, b.wall_s);
         // Green: the frontier is never called. That is the saving, and it is the point.
         if !b.ok && !raw {

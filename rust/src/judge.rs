@@ -1,5 +1,5 @@
-//! The judge: the build. Green or red, no pattern. Errors come back as the compiler
-//! wrote them. This is the only subprocess in the loop, and it is the compiler.
+//! The judge: the build. Green or red, no pattern. Errors come back as the toolchain
+//! wrote them. This is the only subprocess in the loop, and it is the build.
 
 use std::io::Read;
 use std::path::Path;
@@ -16,17 +16,24 @@ pub struct Build {
     pub ran: bool,
 }
 
-pub fn dotnet_build(dir: &Path, timeout: Duration) -> Build {
+/// The build, for a Node project. Was `dotnet_build` until 22 Sep, when the Captain ruled
+/// Sarge is Node and TypeScript only: *"we only support Node.js for the minute and
+/// TypeScript"*. The machinery below is the same - spawn, read both pipes on a thread,
+/// kill on timeout, keep the lines that say error - only the command changed.
+pub fn build(dir: &Path, timeout: Duration) -> Build {
     let t0 = Instant::now();
-    let mut child = match Command::new("dotnet")
-        .args(["build", "--nologo", "-v", "q"])
+    // npm on Windows is a .cmd, which CreateProcess will not spawn directly.
+    let (prog, pre): (&str, &[&str]) = if cfg!(windows) { ("cmd", &["/c", "npm"]) } else { ("npm", &[]) };
+    let mut child = match Command::new(prog)
+        .args(pre)
+        .args(["run", "--if-present", "build"])
         .current_dir(dir)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
     {
         Ok(c) => c,
-        Err(e) => return Build { ok: false, errors: format!("dotnet could not start: {e}"), wall_s: 0.0, ran: false },
+        Err(e) => return Build { ok: false, errors: format!("npm could not start: {e}"), wall_s: 0.0, ran: false },
     };
     let mut stdout = child.stdout.take();
     let mut stderr = child.stderr.take();

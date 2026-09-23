@@ -57,10 +57,19 @@ fn main() -> std::process::ExitCode {
     for p in &problems {
         eprintln!("skipped a malformed rule, {p}");
     }
+    // The repo's OWN rules are the first `own_rules` entries - everything merged in below
+    // is a shipped book. The check needs to tell them apart: own rules were written from
+    // this repo's failures and are always judged; shipped ones are selected per file.
+    let own_rules = rules.len();
     // The universal laws travel with the binary: book/universal.sarge beside this repo,
     // loaded under every book that is not itself the universal one. Where a file sits is
     // its scope - the Captain's ruling, 16 Sep. A .sarge in a repo applies to that repo.
-    if let Some(u) = universal_path() {
+    // book/node.sarge loads above it, under the same merge, when the repo looks like Node
+    // (22 Sep) - so a repo in another language is never handed rules about express.
+    let repo_dir = check_dir.clone()
+        .or_else(|| rules_path.parent().map(PathBuf::from))
+        .unwrap_or_else(|| PathBuf::from("."));
+    for u in [stack_book(&repo_dir, task.as_deref().unwrap_or("")), universal_path()].into_iter().flatten() {
         if u.exists() && std::fs::canonicalize(&u).ok() != std::fs::canonicalize(&rules_path).ok() {
             if let Ok((ur, up)) = load(&u) {
                 for p in &up { eprintln!("universal: skipped a malformed rule, {p}"); }
@@ -178,14 +187,21 @@ fn main() -> std::process::ExitCode {
     // is reported as UNAVAILABLE, never as a pass.
     if let Some(dir) = check_dir {
         let _ = &check;   // the regex check stays for its tests; the loop uses the organ
-        let chosen: Vec<&handshake::Rule> = scoped.clone();
+        // NOT the whole book. 22 Sep: with 80 shipped rules in one prompt the organ stopped
+        // reading the file and recited the rule list back ("HIT 1 wrong: ... HIT 2 wrong:
+        // ..." down the list, naming rules that appear nowhere in the file) - one real
+        // fault missed, a clean file flagged twice. Every other call site selects; the
+        // check did not. Now, per file: the repo's own rules always, plus the shipped rules
+        // that share words with THIS file, capped. The replay was perfect at nine rules.
+        let (own, shipped): (Vec<&handshake::Rule>, Vec<&handshake::Rule>) = scoped.iter().copied()
+            .partition(|r| rules.iter().position(|x| std::ptr::eq(x, *r)).is_some_and(|i| i < own_rules));
         // Only SOURCE is judged. 17 Sep, first live run: the check flagged config.json
         // itself for "hardcoding the database name" - the config file is where the name
         // is supposed to live - and the model emptied it and moved the name to an env
         // var in a loop. A .json, .md or lockfile is data, not code.
         if let Some(f) = &check_file {
             let ext = std::path::Path::new(f).extension().and_then(|e| e.to_str()).unwrap_or("").to_lowercase();
-            if !matches!(ext.as_str(), "cs" | "js" | "mjs" | "cjs" | "jsx" | "ts" | "tsx") {
+            if !matches!(ext.as_str(), "js" | "mjs" | "cjs" | "jsx" | "ts" | "tsx") {
                 println!("CHECKS PASSED  (not a source file - data and config are not judged)");
                 return std::process::ExitCode::SUCCESS;
             }
@@ -194,10 +210,23 @@ fn main() -> std::process::ExitCode {
             Some(f) => vec![dir.join(f)],
             None => handshake::verdict::source_files(&dir).into_iter().take(12).collect(),
         };
+        const CHECK_RULES: usize = 10;
         let mut hits = Vec::new();
         let mut judged = 0usize;
+        let mut enforced_total = 0usize;
+        let mut advisory_total = 0usize;
         for f in &files {
             let rel = f.strip_prefix(&dir).map(|p| p.to_string_lossy().replace('\\', "/")).unwrap_or_else(|_| f.to_string_lossy().to_string());
+            // The file's own words are the query: a file that mentions express.json,
+            // DatabaseSync or readFileSync pulls the rules about them and no others.
+            let text = std::fs::read_to_string(f).unwrap_or_default();
+            let mut chosen: Vec<&handshake::Rule> = own.clone();
+            for r in select(&shipped, &text, None, CHECK_RULES) {
+                if !chosen.iter().any(|c| c.id == r.id) { chosen.push(r); }
+            }
+            let enforced = handshake::verdict::enforced_count(&chosen);
+            enforced_total += enforced;
+            advisory_total += chosen.len() - enforced;
             match handshake::verdict::judge_file(f, &rel, &chosen) {
                 Ok(mut h) => { judged += 1; hits.append(&mut h); }
                 Err(e) => {
@@ -207,9 +236,7 @@ fn main() -> std::process::ExitCode {
             }
         }
         if hits.is_empty() {
-            let enforced = handshake::verdict::enforced_count(&chosen);
-            println!("CHECKS PASSED  ({enforced} demonstrated rule(s) judged by the organ over {judged} file(s); {} advisory, not judged)",
-                     chosen.len() - enforced);
+            println!("CHECKS PASSED  ({enforced_total} demonstrated rule(s) judged by the organ over {judged} file(s); {advisory_total} advisory, not judged)");
             return std::process::ExitCode::SUCCESS;
         }
         println!("CHECKS FAILED - {} hit(s)", hits.len());
@@ -250,4 +277,49 @@ fn default_rules() -> &'static Path {
 fn universal_path() -> Option<PathBuf> {
     std::env::current_exe().ok()
         .and_then(|e| e.ancestors().nth(4).map(|r| r.join("book").join("universal.sarge")))
+}
+
+/// The book for the language this repo is written in, found the same way as the universal
+/// one. 22 Sep: `book/node.sarge`, the Node and Express laws taken from the documentation.
+/// It loads only when the repo LOOKS like Node - a package.json, or a .js/.ts file at the
+/// root - so nothing hands express rules to a repo that has no express in it.
+/// THE STACK'S BOOK. "Books are per-stack, the engine isn't" - the Captain's ruling,
+/// 22 Sep. Nothing below knows what Node is: a book is `book/<stack>.sarge`, a stack is
+/// named by MARKERS declared in that book's own `stack` line, and whichever book's markers
+/// match this repo is the one that loads. Drop `book/python.sarge` in with its own markers
+/// and it works with no change here.
+///
+/// Two ways a repo names its stack, because a NEW project has no files. The Captain's
+/// first test was a fresh folder - nothing but `.sarge` - and a file-sniffing version gave
+/// it five rules instead of sixty. So: the repo's own files when it has them, and
+/// otherwise the words of the task, which say "a Node.js Express API" before any file
+/// exists.
+fn stack_book(repo: &Path, task: &str) -> Option<PathBuf> {
+    let books = std::env::current_exe().ok()
+        .and_then(|e| e.ancestors().nth(4).map(|r| r.join("book")))?;
+
+    // What this repo shows of itself: file names and extensions, one lowercase haystack.
+    let mut seen = String::new();
+    if let Ok(d) = std::fs::read_dir(repo) {
+        for e in d.flatten() {
+            seen.push_str(&e.file_name().to_string_lossy().to_lowercase());
+            seen.push(' ');
+        }
+    }
+    let task = task.to_lowercase();
+
+    let mut best: Option<(usize, PathBuf)> = None;
+    for e in std::fs::read_dir(&books).ok()?.flatten() {
+        let p = e.path();
+        if p.extension().and_then(|x| x.to_str()) != Some("sarge") { continue }
+        if p.file_stem().and_then(|x| x.to_str()) == Some("universal") { continue }
+        let Ok(text) = std::fs::read_to_string(&p) else { continue };
+        // `stack  package.json .js .ts node express` - outside any rule, so the parser
+        // reports it and moves on; a book without one is never auto-loaded.
+        let Some(line) = text.lines().find_map(|l| l.trim().strip_prefix("stack ")) else { continue };
+        let markers: Vec<String> = line.split_whitespace().map(|m| m.to_lowercase()).collect();
+        let n = markers.iter().filter(|m| seen.contains(m.as_str()) || task.contains(m.as_str())).count();
+        if n > 0 && best.as_ref().is_none_or(|(b, _)| n > *b) { best = Some((n, p)); }
+    }
+    best.map(|(_, p)| p)
 }
