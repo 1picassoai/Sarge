@@ -9,7 +9,12 @@
 set -uo pipefail
 
 REPO="https://github.com/1picassoai/Sarge"
-TAG="v0.2.0"                       # pins the TREE and the ORGAN ASSET together
+TAG="v0.3.0-rc1"                  # pins the TREE and the ORGAN ASSET together
+# The RC exists so the full install path can be walked BEFORE the real tag: clone,
+# download, verify, unpack, self-test. v0.1.1-rc1 was blocked because an installer
+# pinned a tag whose assets were missing; this is that same mechanism run forwards.
+# The macOS organ asset is REUSED from v0.2.0 - nothing the organ is built from has
+# changed, so its sha256 below still holds and it is not rebuilt.
 MODEL="Qwen3-4B-Instruct-2507-Q4_K_M.gguf"
 MODEL_URL="https://huggingface.co/unsloth/Qwen3-4B-Instruct-2507-GGUF/resolve/main/$MODEL"
 ORGAN_ASSET="sarge-organ-macos-arm64.zip"
