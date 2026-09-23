@@ -57,36 +57,32 @@ jobs:
         id: pins
         run: |
           set -euo pipefail
-          pin() { grep -oE "$2" "$1" | head -1 | grep -oE '[0-9a-f]{64}|v[0-9]+\.[0-9]+\.[0-9]+' || true; }
-          SH_TAG=$(pin install.sh   '^TAG="v[0-9.]+"')
-          PS_TAG=$(pin install.ps1  '^\$TAG\s*=\s*"v[0-9.]+"')
+          # The tag pattern allows a SUFFIX. v0.3.0-rc1 failed this gate on 23 Sep because
+          # the pattern stopped at the dash, so it read an EMPTY tag, compared "" against
+          # the release, and blocked a release candidate for being a release candidate.
+          # The gate was right in spirit and out of date in fact - the same class as the
+          # stale binary that morning: a mechanism that no longer matched what it guards.
+          #
+          # Windows came out the same day on the Captain's ruling, so install.ps1, the
+          # CUDA runtime and the Windows organ are no longer read or checked here.
+          pin() { grep -oE "$2" "$1" | head -1 | grep -oE '[0-9a-f]{64}|v[0-9]+[.][0-9]+[.][0-9]+(-[0-9A-Za-z.]+)?' || true; }
+          SH_TAG=$(pin install.sh     '^TAG="v[0-9A-Za-z.-]+"')
           MAC_ORGAN=$(pin install.sh  '^ORGAN_SHA256="[0-9a-f]{64}"')
           SH_MODEL=$(pin install.sh   '^MODEL_SHA256="[0-9a-f]{64}"')
-          WIN_ORGAN=$(pin install.ps1 '^\$ORGAN_SHA256\s*=\s*"[0-9a-f]{64}"')
-          CUDART=$(pin install.ps1    '^\$CUDART_SHA256\s*=\s*"[0-9a-f]{64}"')
-          PS_MODEL=$(pin install.ps1  '^\$MODEL_SHA256\s*=\s*"[0-9a-f]{64}"')
-          printf '%-12s %s\n' "release tag" "$TAG" "sh tag" "${SH_TAG:-MISSING}" "ps1 tag" "${PS_TAG:-MISSING}" \
-            "mac organ" "${MAC_ORGAN:-MISSING}" "win organ" "${WIN_ORGAN:-MISSING}" "cudart" "${CUDART:-MISSING}" \
-            "sh model" "${SH_MODEL:-MISSING}" "ps1 model" "${PS_MODEL:-MISSING}"
-          for v in SH_TAG PS_TAG MAC_ORGAN WIN_ORGAN CUDART SH_MODEL PS_MODEL; do
+          printf '%-12s %s\n' "release tag" "$TAG" "sh tag" "${SH_TAG:-MISSING}" \
+            "mac organ" "${MAC_ORGAN:-MISSING}" "sh model" "${SH_MODEL:-MISSING}"
+          for v in SH_TAG MAC_ORGAN SH_MODEL; do
             echo "$v=${!v}" >> "$GITHUB_OUTPUT"
           done
 
-      - name: the installers pin the tag they ship in
+      - name: the installer pins the tag it ships in
         run: |
           set -euo pipefail
-          fail=0
-          [ "${{ steps.pins.outputs.SH_TAG }}" = "$TAG" ] || { echo "install.sh pins '${{ steps.pins.outputs.SH_TAG }}', release is '$TAG'"; fail=1; }
-          [ "${{ steps.pins.outputs.PS_TAG }}" = "$TAG" ] || { echo "install.ps1 pins '${{ steps.pins.outputs.PS_TAG }}', release is '$TAG'"; fail=1; }
-          [ "$fail" = 0 ] || { echo "AN INSTALLER AT THIS TAG WOULD CLONE A DIFFERENT TAG - the v0.1.1-rc1 blocker, again"; exit 1; }
-          echo "both installers pin $TAG"
-
-      - name: the two installers agree on the model
-        run: |
-          set -euo pipefail
-          [ -n "${{ steps.pins.outputs.SH_MODEL }}" ] && [ "${{ steps.pins.outputs.SH_MODEL }}" = "${{ steps.pins.outputs.PS_MODEL }}" ] \
-            || { echo "install.sh and install.ps1 pin different model hashes (or one is missing)"; exit 1; }
-          echo "model hash agreed: ${{ steps.pins.outputs.SH_MODEL }}"
+          [ "${{ steps.pins.outputs.SH_TAG }}" = "$TAG" ] \
+            || { echo "install.sh pins '${{ steps.pins.outputs.SH_TAG }}', release is '$TAG'"; \
+                 echo "AN INSTALLER AT THIS TAG WOULD CLONE A DIFFERENT TAG - the v0.1.1-rc1 blocker, again"; \
+                 exit 1; }
+          echo "install.sh pins $TAG"
 
       # Anonymous. No token, no artifact. If this differs from what a stranger gets, it is
       # not a test of what a stranger gets.
@@ -109,8 +105,6 @@ jobs:
           }
           fail=0
           check sarge-organ-macos-arm64.zip    "${{ steps.pins.outputs.MAC_ORGAN }}" || fail=1
-          check sarge-organ-win-x64-cuda13.zip "${{ steps.pins.outputs.WIN_ORGAN }}" || fail=1
-          check cudart-win-x64-cuda13.zip      "${{ steps.pins.outputs.CUDART }}"    || fail=1
           [ "$fail" = 0 ] || { echo; echo "AN INSTALLER AT $TAG WOULD DELETE A DOWNLOAD AND STOP - every install would fail"; exit 1; }
           echo; echo "every asset on $TAG matches what the installers pin"
 
