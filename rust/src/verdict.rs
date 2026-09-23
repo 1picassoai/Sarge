@@ -22,12 +22,43 @@ const ORGAN_DEFAULT: &str = "http://127.0.0.1:8421";
 ///
 /// The check still needs a model that ANSWERS rather than thinks; see the note on
 /// enable_thinking below.
+/// LOOPBACK ONLY, unless the user says otherwise in as many words.
+///
+/// @Galahad's finding, 23 Sep, and he is right: the first version of this took any URL.
+/// The hook is the product now, so SARGE_ORGAN=https://anywhere/v1 would have POSTed every
+/// file Claude Code writes to that host - while README.md said "what leaves your machine:
+/// nothing" and the hook's own header said "No key, no network". Proven off-box before
+/// this fix: SARGE_ORGAN=https://example.com returned a 405 from a remote server, which
+/// means the request left.
+///
+/// So: 127.0.0.1, ::1 and localhost are allowed. Anything else needs
+/// SARGE_ORGAN_ALLOW_REMOTE=1 as well - a second, deliberate act. A developer who has a
+/// model on another box in their own network can still have it; a developer who pastes a
+/// URL from somewhere cannot lose their source to it by accident.
+fn is_loopback(url: &str) -> bool {
+    let host = url
+        .split("://").last().unwrap_or(url)
+        .split('/').next().unwrap_or("")
+        .rsplit_once(':').map(|(h, _)| h).unwrap_or_else(|| url.split("://").last().unwrap_or(url).split('/').next().unwrap_or(""))
+        .trim_start_matches('[').trim_end_matches(']');
+    matches!(host, "127.0.0.1" | "localhost" | "::1") || host.starts_with("127.")
+}
+
 pub fn organ() -> String {
-    std::env::var("SARGE_ORGAN")
+    let want = std::env::var("SARGE_ORGAN")
         .ok()
         .map(|s| s.trim().trim_end_matches('/').trim_end_matches("/v1").to_string())
-        .filter(|s| !s.is_empty())
-        .unwrap_or_else(|| ORGAN_DEFAULT.to_string())
+        .filter(|s| !s.is_empty());
+    let Some(want) = want else { return ORGAN_DEFAULT.to_string() };
+    if is_loopback(&want) || std::env::var("SARGE_ORGAN_ALLOW_REMOTE").as_deref() == Ok("1") {
+        return want;
+    }
+    // Loud, and NOT a silent fall back to the default - a check that quietly judged
+    // against a different model than the user asked for would be worse than refusing.
+    eprintln!("SARGE_ORGAN={want} is not on this machine, and your code would be sent to it.
+               Sarge judges locally. If you really mean it, set SARGE_ORGAN_ALLOW_REMOTE=1 as well.
+               Using {ORGAN_DEFAULT} instead.");
+    ORGAN_DEFAULT.to_string()
 }
 
 /// The prompt, in the organ's own chat form (Qwen3 speaks ChatML). The rules are given
@@ -77,6 +108,19 @@ fn ask_organ_n(prompt: &str, n_predict: u32) -> Result<String, String> {
             // answers nothing, so the check read a blank as NONE and caught 0 of 7 (19 Sep).
             // llama-server passes this through to the chat template; a non-thinking model
             // ignores it. The judge must speak, not think.
+            // NOT adding a stop sequence here, and the reason is recorded because it was
+            // tried and reverted on 20 Sep. The release review found a single call running
+            // to the 240-token cap at ~4 tok/s on CPU (~59s) and that IS real. But on the
+            // fixtures measured here the cost was spread evenly: 7 calls, ~10s each, 70s
+            // total, and stop sequences changed nothing. So the driver is the NUMBER of
+            // calls as much as the length of any one, and a stop sequence risks truncating
+            // a legitimate list of HITs to buy a saving that did not appear. The real fix
+            // is fewer or cheaper calls, which is a design change, not a flag.
+            //
+            // Deleted by accident on 23 Sep - verdict.rs was overwritten wholesale from a
+            // working clone that never had it - and restored the same day on @Galahad's
+            // finding. The condition has not changed. It is ALSO in
+            // docs/FINDING-STOP-SEQUENCE.md now, so a file overwrite cannot take it again.
             "chat_template_kwargs": { "enable_thinking": false }
         }))
         .map_err(|e| format!("organ not reachable at {}: {e}", organ()))?

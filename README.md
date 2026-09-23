@@ -63,6 +63,9 @@ start it and leave it running:
 address and skip the 2.3 GB download. Qwen3-4B is what we test on and what we'd recommend,
 but nothing here is tied to it.
 
+That address has to be on your own machine. If it isn't, Sarge says so and uses the local
+one anyway — your code doesn't leave by accident because of a pasted URL.
+
 *Windows works too: `irm https://raw.githubusercontent.com/1picassoai/Sarge/main/install.ps1 | iex`
 in PowerShell.*
 
@@ -90,6 +93,6 @@ Your own rules go in `.sarge` at your repo root. Yours always win.
 | download | 2.3 GB, almost all of it the model |
 | checking one file | a few seconds on a GPU, about a minute on 4 cores |
 | rules it ships with | 33 for Node, 3 universal |
-| what leaves your machine | nothing, unless you give the tutor a key |
+| what leaves your machine | nothing. The check only talks to a model on your own machine — it refuses any other address unless you explicitly allow it. The tutor is the one exception, and only if you give it a key |
 
 MIT. Something it got wrong? [Discussions](../../discussions).

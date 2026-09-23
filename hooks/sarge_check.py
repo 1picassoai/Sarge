@@ -18,8 +18,9 @@ Two hook events, one script:
   A guard that cannot check never reports a pass.
 
 Needs: the organ running on :8421, SARGE_HOME pointing at your Sarge clone (with
-rust/target/release/handshake built, .exe on Windows), and a .sarge at the repo root. No key, no
-network: the judge is your own local model.
+rust/target/release/handshake built, .exe on Windows), and a .sarge at the repo root. No key needed: the judge is a model on your own machine. SARGE_ORGAN can point it at
+another local model; anything that is not loopback is refused unless
+SARGE_ORGAN_ALLOW_REMOTE=1 is set as well, so your source cannot leave by accident.
 
 Install: copy hooks/settings.example.json into your project's .claude/settings.json
 (or merge the "hooks" block into the one you have).
