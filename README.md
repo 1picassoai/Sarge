@@ -26,13 +26,33 @@ quietly tell you everything's fine when it hasn't looked.
 
 ## How this is different
 
-| | AI coding agents | Sarge |
+| | AI coding agents | a linter | Sarge |
+|---|---|---|---|
+| writes the code | yes | no | yes |
+| where the rules live | in the prompt | in a config file | in your repo |
+| what reads them | the model writing the code | a pattern matcher | a second model, on your machine |
+| can it know your repo's conventions | told each session | only if you write the rule | yes, that's the book |
+| if a rule is broken | nothing | a warning | the code doesn't run |
+| do the rules improve | only when you edit them | only when you edit them | they grow from what broke |
+| where your code goes | to their servers | nowhere | nowhere |
+
+**We measured it rather than claiming it.** We took a file a local model wrote with no
+help, and gave it to both:
+
+| the fault | ESLint | Sarge |
 |---|---|---|
-| where the rules live | in the prompt | in your repo, checked after the file is written |
-| what happens if a rule is broken | nothing | the code doesn't run |
-| who reads the rules | the same model writing the code | a second model, on your machine |
-| do the rules improve | only when you edit them | Sarge writes new ones from what broke |
-| where your code goes | to their servers | nowhere |
+| a syntax error | **caught** | missed |
+| used the `sqlite3` package where the repo uses `node:sqlite` | missed | **caught** |
+| hardcoded the database path | missed | missed |
+| opened a new database connection per request | missed | missed |
+
+ESLint found the syntax error — which `node --check` catches anyway. Once that was fixed,
+it passed the file clean. It has no way to know your repo uses `node:sqlite`: that's a
+convention, not a language rule, and nobody has written an ESLint rule for it.
+
+Sarge caught the convention and missed two others, so this is not a clean sweep and we are
+not going to pretend otherwise. One file, one model, one run. **They're not the same tool
+and you'd sensibly run both.**
 
 ## Install
 

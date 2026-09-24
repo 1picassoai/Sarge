@@ -3,9 +3,13 @@
 //! CHECKS PASSED over every broken rule since. The Captain's GO, 17 Sep 07:00: "that is
 //! the correct way, it is part of the loop."
 //!
-//! One question per file, all the rules in it, answered by the same local model that
+//! A few rules at a time, over the whole file, answered by the same local model that
 //! wrote the code - greedy, short, over the organ's own endpoint on this machine. A YES
 //! names the rule and the line; the agent turns that into a refusal, as it always did.
+//!
+//! A FEW at a time, and by NAME, because of 24 Sep: asked about ten numbered rules over a
+//! 73-line file the model found every fault and then mislabelled them, and a file with
+//! four real faults came back CHECKS PASSED. Every fixture before that was fourteen lines.
 //! Every answer is checked against the file before it is believed: a rule id that is not
 //! in the book, or a line number that is not in the file, is thrown away.
 
@@ -66,7 +70,15 @@ pub fn organ() -> String {
 fn prompt(file_name: &str, source: &str, rules: &[&Rule]) -> String {
     let mut rules_block = String::new();
     for (i, r) in rules.iter().enumerate() {
-        rules_block.push_str(&format!("{}. {}\n   rule: {}\n", i + 1, r.id, r.shape));
+        // BY NAME, NOT BY NUMBER. 24 Sep: given ten numbered rules and a 73-line file the
+        // model found the right lines and labelled them 1, 2, 3 - sequentially, not by the
+        // rule each one broke. `db.all(...)` came back tagged as
+        // no-internal-detail-in-an-error-response. The gate then correctly dropped six real
+        // faults for having nothing to do with the rule they were filed under, and a file
+        // with four genuine faults came back CHECKS PASSED. A name cannot be confused with
+        // a position in a list.
+        let _ = i;
+        rules_block.push_str(&format!("{}\n   rule: {}\n", r.id, r.shape));
         for w in &r.wrong { rules_block.push_str(&format!("   wrong: {w}\n")); }
         for w in &r.right { rules_block.push_str(&format!("   right: {w}\n")); }
         if let Some(a) = &r.allow { rules_block.push_str(&format!("   allowed exception: {a}\n")); }
@@ -162,16 +174,41 @@ fn parse(answer: &str, file_name: &str, source: &str, rules: &[&Rule]) -> Vec<Hi
             Some((n, q)) => (n.trim(), q.trim()),
             None => (after.trim(), ""),
         };
-        let Ok(n) = num.parse::<usize>() else { continue };
+        let Ok(mut n) = num.parse::<usize>() else { continue };
         if n == 0 || n > lines.len() { continue }
-        let actual = lines[n - 1].trim();
+        let mut actual = lines[n - 1].trim();
         // The quoted line must be the real one, or at least share its substance. A model
         // that names line 12 and quotes line 40 is guessing.
-        let bears_out = quoted.is_empty()
-            || actual.contains(quoted.trim_end_matches(';'))
-            || quoted.contains(actual.trim_end_matches(';'))
-            || overlap(actual, quoted) >= 0.6;
-        if !bears_out { continue }
+        let matches = |a: &str, q: &str| !q.is_empty()
+            && (a.contains(q.trim_end_matches(';')) || q.contains(a.trim_end_matches(';'))
+                || overlap(a, q) >= 0.6);
+
+        // TRUST THE QUOTE OVER THE NUMBER. 24 Sep: on a 73-line file the organ reported
+        // four real faults and named line 29, 51, 10 for code that sat on 33, 56, 9 - the
+        // drift growing with the file. Every hit was then thrown away as a guess, and a
+        // file with four genuine faults came back CHECKS PASSED.
+        //
+        // Every fixture the check had ever been tested on was 14 or 16 lines, where the
+        // model never miscounts. The first real file it met was five times longer.
+        //
+        // The model quoted the code CORRECTLY and only lost count. So when the quote does
+        // not bear out where it was said to be, look for it - nearest first, because a
+        // repeated line should resolve to the one it meant. Only a quote that appears
+        // nowhere is a guess.
+        // Against the STATEMENT too: the organ quotes the whole call, and on wrapped code
+        // the named line is only its first fragment. `db.run(` will never match a quote
+        // that carries the arguments and the callback with it.
+        if !quoted.is_empty() && !matches(actual, quoted)
+            && !matches(&statement_at(&lines, n), quoted) {
+            let found = (1..=lines.len())
+                .filter(|i| matches(lines[i - 1].trim(), quoted)
+                         || matches(&statement_at(&lines, *i), quoted))
+                .min_by_key(|i| i.abs_diff(n));
+            match found {
+                Some(i) => { n = i; actual = lines[i - 1].trim(); }
+                None => continue,
+            }
+        }
         if hits.iter().any(|h: &Hit| h.rule == r.id && h.line == n) { continue }
         hits.push(Hit { rule: r.id.clone(), file: file_name.to_string(), line: n,
                         matched: actual.to_string(), shape: r.shape.clone() });
@@ -208,6 +245,34 @@ fn tokens(s: &str) -> std::collections::HashSet<String> {
 
 /// Tokens the wrong examples carry that no right example does. Empty when a rule has
 /// no right examples to subtract - then every line is fair game for the second look.
+/// A statement, not a line. Real code wraps: `db.run(` on one line and its arguments and
+/// callback on the next four. The check reads ONE line, so on a wrapped call the line it
+/// judges is `db.run(` - which shares no word with any rule's example and is dropped
+/// before anything looks at it.
+///
+/// 24 Sep: the first real file the check ever met had four genuine faults, three of them
+/// on wrapped calls, and came back CHECKS PASSED. Every fixture it had been tested on was
+/// 14 or 16 lines with the fault on one line. This is the difference between a test file
+/// and a repo.
+///
+/// So: from the named line, take up to `MAX_JOIN` further lines while the brackets are
+/// still open. Cheap, no parser, and enough to see the call.
+const MAX_JOIN: usize = 6;
+
+fn statement_at(lines: &[&str], n: usize) -> String {
+    let mut depth: i32 = 0;
+    let mut out = String::new();
+    for l in lines.iter().skip(n - 1).take(MAX_JOIN) {
+        if !out.is_empty() { out.push(' '); }
+        out.push_str(l.trim());
+        for c in l.chars() {
+            match c { '(' | '[' | '{' => depth += 1, ')' | ']' | '}' => depth -= 1, _ => {} }
+        }
+        if depth <= 0 { break }
+    }
+    out
+}
+
 fn discriminating(r: &Rule) -> std::collections::HashSet<String> {
     if r.right.is_empty() { return std::collections::HashSet::new() }
     let mut wrong = std::collections::HashSet::new();
@@ -241,8 +306,22 @@ pub fn judge_file(path: &Path, rel: &str, all_rules: &[&Rule]) -> Result<Vec<Hit
     let source = std::fs::read_to_string(path).map_err(|e| format!("cannot read {rel}: {e}"))?;
     let source = source.trim_start_matches('\u{feff}');
     if source.trim().is_empty() { return Ok(Vec::new()) }
-    let answer = ask_organ(&prompt(rel, source, rules))?;
+    // IN SMALL GROUPS. The same measurement: with ten rules in one question the model
+    // stops tracking which rule is which; with two it is right. It reads the FILE fine
+    // either way - what it loses is the list. So the file is judged a few rules at a time
+    // and the hits are pooled. More calls, and correct.
+    const PER_CALL: usize = 2;
+    let mut answer = String::new();
+    for group in rules.chunks(PER_CALL) {
+        let a = ask_organ(&prompt(rel, source, group))?;
+        if !a.trim().eq_ignore_ascii_case("NONE") {
+            answer.push_str(&a);
+            answer.push('\n');
+        }
+    }
+    if answer.trim().is_empty() { answer.push_str("NONE"); }
     let mut candidates = parse(&answer, rel, source, rules);
+    let all_lines: Vec<&str> = source.lines().collect();
     // THE DISCRIMINATING WORD. What the wrong examples say that the right ones never do -
     // `await`, `AddControllers`, `EnsureDeleted`, `'tools.db'`, `<td>`. Two uses: a line
     // that carries one becomes a candidate even if the organ's first pass missed it (it
@@ -253,16 +332,23 @@ pub fn judge_file(path: &Path, rel: &str, all_rules: &[&Rule]) -> Result<Vec<Hit
     // and `FROM` lit up every line. The organ finds candidates by meaning; the tokens only
     // gate them.)
     candidates.retain(|h| {
-        let Some(r) = rules.iter().find(|r| r.id == h.rule) else { return false };
+        let Some(r) = rules.iter().find(|r| r.id == h.rule) else {
+            if std::env::var_os("SARGE_TRACE").is_some() { eprintln!("    DROP {} - rule not in the set", h.rule); }
+            return false };
         let disc = discriminating(r);
-        disc.is_empty() || tokens(&h.matched).iter().any(|t| disc.contains(t))
+        // Against the STATEMENT, not the line - `db.run(` alone carries no word to match.
+        let stmt = statement_at(&all_lines, h.line);
+        let keep = disc.is_empty() || tokens(&stmt).iter().any(|t| disc.contains(t));
+        if !keep && std::env::var_os("SARGE_TRACE").is_some() {
+            eprintln!("    DROP {} line {} - no discriminating word in the statement", h.rule, h.line);
+        }
+        keep
     });
     // THE SECOND LOOK. The first pass over-reports - 17 Sep it flagged two correct
     // handlers beside the one real fault. A false YES blocks a correct run, which is
     // worse than a miss, so every candidate is put to a narrow question on its own:
     // this rule, this one line, yes or no. Only a YES survives.
     let mut hits = Vec::new();
-    let all_lines: Vec<&str> = source.lines().collect();
     for h in candidates {
         let Some(r) = rules.iter().find(|r| r.id == h.rule) else { continue };
         // The line with its neighbours: the startup scope sits on the line above, the
@@ -273,9 +359,16 @@ pub fn judge_file(path: &Path, rel: &str, all_rules: &[&Rule]) -> Result<Vec<Hit
         // Two above, five below: a write is followed by what checks it.
         let from = h.line.saturating_sub(2); let to = (h.line + 5).min(all_lines.len());
         let window: String = (from..to).map(|i| format!("{}{:4}  {}\n", if i + 1 == h.line { ">" } else { " " }, i + 1, all_lines[i])).collect();
-        match confirm(r, &h.matched, &window) {
+        // The line-alone question gets the STATEMENT. Asked whether `db.run(` resembles a
+        // wrong example, a judge can only say NEITHER - and NEITHER kills the hit.
+        let stmt = statement_at(&all_lines, h.line);
+        match confirm(r, &stmt, &window) {
             Ok(true) => hits.push(h),
-            Ok(false) => {}
+            Ok(false) => {
+                if std::env::var_os("SARGE_TRACE").is_some() {
+                    eprintln!("    DROP {} line {} - the second look said no", h.rule, h.line);
+                }
+            }
             Err(e) => return Err(e),
         }
     }

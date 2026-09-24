@@ -43,16 +43,6 @@ rule await-every-promise
   since  2026-09-22 merlin · nodejs.org/api/process.html#event-unhandledrejection
 end
 
-rule no-await-on-a-sync-call
-  do     call a synchronous API directly
-  never  put await in front of a function that returns no promise
-  wrong  | const row = await db.prepare('SELECT 1').get();
-  wrong  | await db.exec('CREATE TABLE t (id INTEGER)');
-  right  | const row = db.prepare('SELECT 1').get();
-  right  | db.exec('CREATE TABLE t (id INTEGER)');
-  since  2026-09-22 merlin · nodejs.org/api/sqlite.html - DatabaseSync is synchronous throughout
-end
-
 rule parameterise-every-query
   do     pass values as bound parameters
   never  build a SQL string by concatenating or interpolating a value
