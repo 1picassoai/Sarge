@@ -15,6 +15,10 @@ it must say HIT on every `*-bad.*` file at the right line, and NONE on every `*-
 | `js-hardcoded-table-bad.jsx` | `fetch-real-data-not-fixtures` | Node task 6c |
 | `js-long-bad.js` | faults inside wrapped multi-line calls | @Galahad, 24 Sep — the first long faulty file |
 | `js-long-good.js` | **NONE** — 12 near-identical handlers, all correct | @Galahad, 24 Sep — the first long clean file |
+| `js-clean2-good.js` | **NONE** — CORS from config, 401 then 403, Promise.all, setHeader, 204 with `.end()` | @Galahad, 24 Sep — the only fixture exercising all five at once |
+| `js-clean3-good.js` | **NONE** — POST/PUT/404/201 | @Galahad, 24 Sep |
+| `js-nosarge-bad.js` | the README's comparison, so a published claim can be re-run | 24 Sep — the original file was never in the repo |
+| `js-stream-bad.js` | `stream-large-files`, so NOISE cannot silently disable it | 24 Sep |
 
 Run: `rust\replay-check.cmd` — one line per file, HIT or NONE, and a verdict at the end.
 
@@ -157,3 +161,37 @@ is not catching anything, it is guessing and being right sometimes.
 **What this does not fix:** a file-scope check. "This file never disables the banner" is a
 real fault and a real rule — it is simply not a *line* question, and it wants a pass that
 reads the whole file once rather than a window of eight lines. Struck, not forgotten.
+
+### Three reasons a rule fails, and only one of them is the rule's fault
+
+The seven were struck under one banner and that hid a distinction @Galahad was right to
+insist on. They are not the same kind of broken, and the next person to re-add one needs to
+know which kind they are looking at.
+
+**1. Unjudgeable by construction.** The `right` example *contains* the `wrong` one, so no
+line judge could ever separate them — `const app = express();` versus
+`const app = express(); app.disable('x-powered-by');`. The fault is the ABSENCE of
+something, and absence is a file question. `disable-the-framework-banner`,
+`port-from-the-environment`, `401-is-not-403`. **Do not re-add these as line rules.**
+
+**2. Judgeable, but invisible to the tokeniser.** `204-carries-no-body` is separable on one
+line — `res.status(204).json({ok: true})` against `res.status(204).end()`. It died because
+every distinguishing token is lost: `json` and `true` are NOISE, `ok` is under the 3-char
+floor, and **`204` cancels because it appears in BOTH examples even though 204 is the entire
+subject of the rule.** That last part is a tokeniser limit, not a design limit. This rule is
+worth restoring when the tokeniser stops cancelling a token that the rule is named after.
+
+**3. The discriminator is a word correct code uses.** `stream-large-files` flagged
+`res.send(toCsv(tools, categories))` — a string built from two arrays already in memory,
+no file read anywhere in the function — on three consecutive runs. Its gate was working:
+`readFile` and `send` were both real discriminators, because the right examples use `pipe`.
+But `send` is not a fault word, it is ordinary Express, and it survived the subtraction by
+accident.
+
+**The law that comes out of it: a discriminator is worth something only if it is absent from
+CORRECT CODE, not merely absent from our own right examples.** Rewriting the rule's wrong
+example from two statements to one did NOT fix this — traced, the 4B still answered WRONG
+twice with the `allow` clause in front of it, because it was matching `res.send(` against
+`res.send(`. The fix was to put `send` and its neighbours on the NOISE list, after which the
+rule still catches the real violation on `readFile`, which is the word that means something.
+`js-stream-bad.js` holds that violation so the rule cannot be silently disabled.

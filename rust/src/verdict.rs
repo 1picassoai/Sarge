@@ -223,6 +223,15 @@ const NOISE: &[&str] = &[
     "app", "res", "req", "tools", "tool", "context", "result", "services", "builder", "options",
     "name", "price", "true", "false", "null", "undefined", "string", "int", "json", "status",
     "get", "post", "put", "delete", "exec", "prepare", "run", "all", "then", "catch", "error",
+    // 24 Sep, @Galahad's clean2.js: `res.send(toCsv(tools, categories))` - a string built
+    // from two arrays already in memory - was flagged by stream-large-files, three runs
+    // running. `send` survived as a discriminator ONLY because that rule's right examples
+    // happen to use `pipe`, so the subtraction never removed it. It is not a fault word.
+    // THE LAW THIS TEACHES: a discriminator is worth something only if it is absent from
+    // CORRECT CODE, not merely absent from our own right examples. Rewriting the rule's
+    // wrong example did not fix it - traced, the 4B still said WRONG twice with the `allow`
+    // in front of it, because it was matching `res.send(` against `res.send(`.
+    "send", "write", "end", "next", "use", "listen", "headers", "header", "body", "data",
 ];
 
 /// Words of a line: alphanumeric runs of three or more, plus quoted literals whole.

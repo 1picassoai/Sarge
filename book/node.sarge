@@ -131,9 +131,10 @@ end
 rule stream-large-files
   do     pipe a large file to the response
   never  read a whole file into memory to send it
-  wrong  | const buf = await readFile(big); res.send(buf);
+  wrong  | res.send(await readFile(big));
   right  | createReadStream(big).pipe(res);
   right  | await pipeline(createReadStream(big), res);
+  allow  sending a string or buffer already in memory - the fault is READING THE FILE, not the send
   since  2026-09-22 merlin · nodejs.org/api/stream.html
 end
 

@@ -24,7 +24,7 @@ REM a long faulty file reported CHECKS PASSED, and 69 lines of correct code drew
 REM false flags. Short fixtures measure a check on short fixtures.
 echo.
 echo === the long files against the SHIPPED book\node.sarge ===
-for %%f in (js-long-bad.js js-long-good.js js-nosarge-bad.js) do (
+for %%f in (js-long-bad.js js-long-good.js js-nosarge-bad.js js-clean2-good.js js-clean3-good.js js-stream-bad.js) do (
   echo --- %%f
   %H% --check "%D%" --file %%f --repo judge --rules "%~dp0..\book\node.sarge"
 )
