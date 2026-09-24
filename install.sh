@@ -9,7 +9,7 @@
 set -uo pipefail
 
 REPO="https://github.com/1picassoai/Sarge"
-TAG="v0.3.0"                      # pins the TREE and the ORGAN ASSET together
+TAG="v0.3.1"                      # pins the TREE and the ORGAN ASSET together
 # The RC exists so the full install path can be walked BEFORE the real tag: clone,
 # download, verify, unpack, self-test. v0.1.1-rc1 was blocked because an installer
 # pinned a tag whose assets were missing; this is that same mechanism run forwards.
