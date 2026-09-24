@@ -195,3 +195,43 @@ twice with the `allow` clause in front of it, because it was matching `res.send(
 `res.send(`. The fix was to put `send` and its neighbours on the NOISE list, after which the
 rule still catches the real violation on `readFile`, which is the word that means something.
 `js-stream-bad.js` holds that violation so the rule cannot be silently disabled.
+
+**4. The fault is an ABSENCE.** The gate finds a fault by what the wrong line *carries*. For
+these three the wrong line carries nothing special — what makes it wrong is a word that
+*should be there and is not*:
+
+| rule | wrong | right |
+|---|---|---|
+| `await-every-promise` | `doWork();` | `await doWork();` |
+| `throw-errors-not-strings` | `throw 'tool not found';` | `throw new Error('tool not found');` |
+| `nullish-coalescing-for-defaults` | `req.query.limit \|\| 20` | `req.query.limit ?? 20` |
+
+The right example *adds* a word rather than removing one, so wrong-minus-right is empty for
+all three. They had only ever fired because `disc.is_empty()` meant keep-everything —
+closing that hole turned them from *kept by accident* into *dropped by design*, and they went
+silent in the same commit. Found by @Galahad running one file through both binaries: **v0.3.0
+caught four faults, the fixed build caught one.**
+
+*The fix that was tried and reverted, so nobody builds it twice.* A mirror of
+`discriminating` — a REMEDY set, what every right example carries that no wrong example does
+(`await`, `Error`, `??`) — gating on "the fault's word is present OR the fix's word is
+absent". It rescued `await-every-promise` immediately and **broke three clean files**:
+`js-long-good` went from PASSED to eight false flags, because *lacking* a word is true of
+nearly every line in every file. Measured on the full corpus, reverted within the hour.
+
+*And underneath it, the floor.* Even with remedy working, two of the three are unreachable,
+and both times the information is destroyed **before any gate runs**:
+
+- **`Error` is erased by the NOISE list.** `tokens()` compares `w.to_lowercase()` against
+  NOISE, and `"error"` is on it — put there so `err`/`error` variable names would not match.
+  So `Error`, the JavaScript constructor and the entire remedy of that rule, never survives
+  tokenisation.
+- **`??` and `||` cannot exist as tokens.** The splitter is
+  `!c.is_alphanumeric() && c != '_'`, so punctuation is a *separator*. An operator can never
+  be a token, and a rule whose whole subject is an operator has nothing to gate on.
+
+Fixing either means case-sensitive NOISE, or operators as tokens, which changes how **every**
+rule is gated and needs the whole corpus re-walked. It is a walk of its own, not a patch.
+Until then the three are struck and `js-absence-knownmiss.js` holds all four faults with the
+one that is caught — **the day the tokeniser is fixed that file goes from 1 hit to 4 and
+proves it.**

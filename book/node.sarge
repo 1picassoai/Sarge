@@ -33,16 +33,6 @@ rule no-sync-fs-in-a-request
   since  2026-09-22 merlin · nodejs.org/api/fs.html - the synchronous APIs block the event loop
 end
 
-rule await-every-promise
-  do     await a promise, or return it, so a rejection is seen
-  never  call an async function and drop the promise on the floor
-  wrong  | doWork();
-  wrong  | fs.promises.writeFile(path, data);
-  right  | await doWork();
-  right  | await fs.promises.writeFile(path, data);
-  since  2026-09-22 merlin · nodejs.org/api/process.html#event-unhandledrejection
-end
-
 rule parameterise-every-query
   do     pass values as bound parameters
   never  build a SQL string by concatenating or interpolating a value
@@ -58,14 +48,6 @@ rule no-internal-detail-in-an-error-response
   wrong  | res.status(500).json({ error: err.stack });
   right  | console.error(err); res.status(500).json({ error: 'internal error' });
   since  2026-09-22 merlin · expressjs.com/en/advanced/best-practice-security.html
-end
-
-rule throw-errors-not-strings
-  do     throw an Error
-  never  throw a string or a plain object
-  wrong  | throw 'tool not found';
-  right  | throw new Error('tool not found');
-  since  2026-09-22 merlin · nodejs.org/api/errors.html - only an Error carries a stack
 end
 
 rule no-console-log-for-errors
@@ -194,14 +176,6 @@ rule random-from-crypto
   right  | const token = randomBytes(32).toString('hex');
   right  | const id = randomUUID();
   since  2026-09-22 merlin · nodejs.org/api/crypto.html#cryptorandomuuidoptions
-end
-
-rule nullish-coalescing-for-defaults
-  do     default a value with ??
-  never  default with || when zero or an empty string is valid
-  wrong  | const limit = req.query.limit || 20;
-  right  | const limit = req.query.limit ?? 20;
-  since  2026-09-22 merlin · developer.mozilla.org - || also replaces 0 and ''
 end
 
 rule no-array-index-as-a-key

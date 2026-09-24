@@ -28,3 +28,12 @@ for %%f in (js-long-bad.js js-long-good.js js-nosarge-bad.js js-clean2-good.js j
   echo --- %%f
   %H% --check "%D%" --file %%f --repo judge --rules "%~dp0..\book\node.sarge"
 )
+REM THE KNOWN MISS, kept apart so it is never read as a pass OR as a failure. Four real
+REM faults, ONE caught, and the three missed are absences the tokeniser destroys before any
+REM gate sees them - a missing `await`, `Error` erased by a lowercasing NOISE list, `??`
+REM against `||` where punctuation is never a token. The rules were struck on 24 Sep. This
+REM file is the receipt: the day the tokeniser is fixed it goes 1 -> 4 and proves it.
+echo.
+echo === KNOWN MISS - expect 1 hit of 4 faults; this is a recorded limit, not a regression ===
+echo --- js-absence-knownmiss.js
+%H% --check "%D%" --file js-absence-knownmiss.js --repo judge --rules "%~dp0..\book\node.sarge"

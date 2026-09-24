@@ -89,9 +89,16 @@ has been built and walked on a real machine.
 
 ## The rules
 
-Sarge comes with **33 rules for Node and Express**, plus 3 that apply to any language. Each
+Sarge comes with **22 rules for Node and Express**, plus 3 that apply to any language. Each
 one is written as real code — a wrong line and a right line — so the model can see the
 difference rather than read about it:
+
+**The check enforces 19 of the 22.** The other three are guidance the model is shown but
+that the check cannot judge on one line — the wrong line is a *missing* word, and the check
+finds a fault by what a line carries. Every rule's `wrong` line is in the book, so you can see
+for yourself which is which. A rule listed here is a rule you can read; a rule the check
+enforces is one that stops your code running. We would rather tell you the second number
+than let you assume it equals the first.
 
 ```
 rule config-not-code
