@@ -289,9 +289,18 @@ fn overlap(a: &str, b: &str) -> f32 {
     wa.intersection(&wb).count() as f32 / wa.len().max(wb.len()) as f32
 }
 
-/// How many of a rule set the check can enforce - the demonstrated ones.
+/// Can the check actually enforce this rule? Two things have to be true: it must be
+/// DEMONSTRATED - a `wrong` line to compare against - and it must be DISTINGUISHABLE,
+/// meaning something in that wrong line is absent from every right line and is not a word
+/// correct code uses all day. A rule that fails the second test reads perfectly to a human
+/// and is invisible to the gate, which is how twelve false positives reached a clean file.
+pub fn enforceable(r: &Rule) -> bool {
+    !r.wrong.is_empty() && !discriminating(r).is_empty()
+}
+
+/// How many of a rule set the check can enforce.
 pub fn enforced_count(rules: &[&Rule]) -> usize {
-    rules.iter().filter(|r| !r.wrong.is_empty()).count()
+    rules.iter().filter(|r| enforceable(r)).count()
 }
 
 /// Judge one file against the rules. `Err` means the organ could not be asked - the
@@ -300,7 +309,10 @@ pub fn judge_file(path: &Path, rel: &str, all_rules: &[&Rule]) -> Result<Vec<Hit
     // ENFORCED means demonstrated. A rule with no `wrong` line is a slogan - delivered to
     // the model, never judged. 17 Sep: every false hit in the replay came from a rule that
     // had no example to compare against. The language says it; the check now means it.
-    let enforced: Vec<&Rule> = all_rules.iter().copied().filter(|r| !r.wrong.is_empty()).collect();
+    // ENFORCEABLE, not merely demonstrated: a rule whose wrong line carries nothing the
+    // right line lacks can never survive the gate, so asking the organ about it spends a
+    // call to produce a hit we would drop. 24 Sep - see `enforceable`.
+    let enforced: Vec<&Rule> = all_rules.iter().copied().filter(|r| enforceable(r)).collect();
     let rules = &enforced[..];
     if rules.is_empty() { return Ok(Vec::new()) }
     let source = std::fs::read_to_string(path).map_err(|e| format!("cannot read {rel}: {e}"))?;
@@ -336,9 +348,27 @@ pub fn judge_file(path: &Path, rel: &str, all_rules: &[&Rule]) -> Result<Vec<Hit
             if std::env::var_os("SARGE_TRACE").is_some() { eprintln!("    DROP {} - rule not in the set", h.rule); }
             return false };
         let disc = discriminating(r);
+        // AN EMPTY SET IS NOT A FREE PASS. It used to mean "keep, nothing to filter on",
+        // and that is the hole @Galahad fell through on 24 Sep: a 69-line CLEAN file came
+        // back with TWELVE hits, all 204-carries-no-body on `res.json(rows)`, with no 204
+        // anywhere in the file. That rule's wrong and right examples differ only by `json`
+        // and `true`, both of them NOISE - so the set was empty, every line was kept, and
+        // a 4B asked twelve times whether JSON beside a 204 was wrong said WRONG twelve
+        // times. Correct code, refused to run.
+        //
+        // A rule with nothing to gate on is a rule the check CANNOT ENFORCE. Saying so is
+        // the honest answer; waving it through is not. The book carries the other half of
+        // this: seven rules whose proof lives elsewhere in the file were struck the same
+        // day, because no amount of gating rescues a rule the line judge cannot see.
+        if disc.is_empty() {
+            if std::env::var_os("SARGE_TRACE").is_some() {
+                eprintln!("    DROP {} line {} - nothing distinguishes this rule's wrong line from its right one", h.rule, h.line);
+            }
+            return false;
+        }
         // Against the STATEMENT, not the line - `db.run(` alone carries no word to match.
         let stmt = statement_at(&all_lines, h.line);
-        let keep = disc.is_empty() || tokens(&stmt).iter().any(|t| disc.contains(t));
+        let keep = tokens(&stmt).iter().any(|t| disc.contains(t));
         if !keep && std::env::var_os("SARGE_TRACE").is_some() {
             eprintln!("    DROP {} line {} - no discriminating word in the statement", h.rule, h.line);
         }

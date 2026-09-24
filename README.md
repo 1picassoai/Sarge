@@ -42,17 +42,21 @@ help, and gave it to both:
 | the fault | ESLint | Sarge |
 |---|---|---|
 | a syntax error | **caught** | missed |
-| used the `sqlite3` package where the repo uses `node:sqlite` | missed | **caught** |
-| hardcoded the database path | missed | missed |
+| used the `sqlite3` package where the repo uses `node:sqlite` | missed | **caught**, all 3 sites |
+| hardcoded the database path | missed | **caught**, all 3 sites |
 | opened a new database connection per request | missed | missed |
 
 ESLint found the syntax error — which `node --check` catches anyway. Once that was fixed,
 it passed the file clean. It has no way to know your repo uses `node:sqlite`: that's a
 convention, not a language rule, and nobody has written an ESLint rule for it.
 
-Sarge caught the convention and missed two others, so this is not a clean sweep and we are
-not going to pretend otherwise. One file, one model, one run. **They're not the same tool
-and you'd sensibly run both.**
+Sarge still misses the per-request connection, so this is not a clean sweep and we are not
+going to pretend otherwise: that fault is *three correct-looking lines in three different
+handlers*, and nothing on any one line says it is wrong. **They're not the same tool and
+you'd sensibly run both.**
+
+The file is `rust/tests/judge/js-nosarge-bad.js` and the rules are the shipped book — run it
+yourself and read the number you get, rather than ours.
 
 ## Install
 

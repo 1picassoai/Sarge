@@ -18,3 +18,13 @@ for %%f in (js-hardcoded-db-bad.js js-await-sync-bad.js js-clean-good.js js-hard
   echo --- %%f
   %H% --check "%D%" --file %%f --repo judge --rules "%JS%"
 )
+REM THE LONG FILES, added 24 Sep, judged against the SHIPPED book rather than the fixtures'
+REM own copy. Two bugs lived a week in the gap between a 16-line fixture and a real file:
+REM a long faulty file reported CHECKS PASSED, and 69 lines of correct code drew twelve
+REM false flags. Short fixtures measure a check on short fixtures.
+echo.
+echo === the long files against the SHIPPED book\node.sarge ===
+for %%f in (js-long-bad.js js-long-good.js js-nosarge-bad.js) do (
+  echo --- %%f
+  %H% --check "%D%" --file %%f --repo judge --rules "%~dp0..\book\node.sarge"
+)

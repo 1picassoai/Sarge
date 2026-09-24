@@ -13,8 +13,18 @@ it must say HIT on every `*-bad.*` file at the right line, and NONE on every `*-
 | `js-hardcoded-db-bad.js` | `use-config-for-connection` | Node task 1, the first rule the tutor wrote |
 | `js-await-sync-bad.js` | `no-await-on-sync-database` | Node task 2 |
 | `js-hardcoded-table-bad.jsx` | `fetch-real-data-not-fixtures` | Node task 6c |
+| `js-long-bad.js` | faults inside wrapped multi-line calls | @Galahad, 24 Sep — the first long faulty file |
+| `js-long-good.js` | **NONE** — 12 near-identical handlers, all correct | @Galahad, 24 Sep — the first long clean file |
 
 Run: `rust\replay-check.cmd` — one line per file, HIT or NONE, and a verdict at the end.
+
+**The two long files are here because of what their absence cost.** Until 24 Sep every
+fixture above was 14 to 16 lines with a single fault on a single line — nothing the shape of
+a repo. Two bugs lived in that gap for a week and neither was visible to this corpus: the
+check lost track of which rule was which on a long file and reported CHECKS PASSED on four
+real faults, and the gate waved through every hit for a rule it could not distinguish and
+put **twelve false flags on sixty-nine lines of correct code**. Both were found by a file
+that was not in here. A corpus of short files measures a check on short files.
 
 ## Replay result, 17 Sep 07:15 — the version that shipped
 
@@ -99,3 +109,51 @@ machine without an NVIDIA card is a Metal or CPU build of the same 4B, not a sma
 One caution from the day: two scripts that both swap the organ on :8421 were run at once,
 and one traced "hit" from the small model turned out to be the 4B answering mid-swap. Swap
 the organ from one place, sequentially, or the trace lies.
+
+## 24 Sep — an empty gate was a free pass, and seven rules could never have held
+
+**What @Galahad found.** The morning's fix (rules by name, two per call, statements not
+lines) genuinely repaired a long faulty file. Run against a long *clean* file it produced
+**twelve false flags**, every one `204-carries-no-body` on `res.json(rows)`, with no 204
+anywhere in the 69 lines. A false flag refuses to let correct code run, which is the one
+thing this tool must never do.
+
+**The cause, which was not the morning's change.** The gate keeps a candidate only if the
+line carries a token the rule's `wrong` examples have and its `right` examples lack. For
+`204-carries-no-body` that difference is `json` and `true` — both on the NOISE list — so the
+set came out **empty**, and an empty set used to mean *keep everything*. Twelve lines went to
+a 4B asked "is JSON beside a 204 wrong?", and it said WRONG twelve times. The old code gated
+on `h.matched`, which for these hits is the same `res.json(rows);`, so **v0.3.0 would have
+done the same** — the widening never caused it.
+
+**The fix, in two halves.**
+
+*An empty set now means the check cannot enforce that rule*, so the hit is dropped and the
+rule is never asked about at all (`enforceable()` in `verdict.rs`). Waving a rule through
+because there is nothing to check it with is not a check.
+
+*Seven rules were struck from `book/node.sarge`* — `disable-the-framework-banner`,
+`port-from-the-environment`, `401-is-not-403`, `promise-all-for-independent-work`,
+`set-explicit-content-type-for-non-json`, `204-carries-no-body`, `explicit-cors-origins`.
+Each breaks the line-judge law: **the proof sits elsewhere in the file.**
+`const app = express()` is correct code — it is only wrong if `app.disable('x-powered-by')`
+appears nowhere, and on the clean file it is on line 6, outside the window. A rule whose
+`right` example *contains* its `wrong` example can never be judged one line at a time. Book
+32 → 25.
+
+| | before | after |
+|---|---|---|
+| `js-long-good.js` (correct code) | **12 false flags**, 32s | **0**, 17s |
+| `js-long-bad.js` (4 real faults) | 4 caught | **2 caught** |
+| replay corpus | green | green |
+| hook suite | 8 of 8 | 8 of 8 |
+
+**The two faults now missed are `port-from-the-environment` and
+`disable-the-framework-banner` — struck rules, and the trade is deliberate.** Both were only
+ever "caught" by a rule that fires on correct code as readily as on broken code; the same
+mechanism that flagged them flagged twelve good lines. A rule that cannot tell the two apart
+is not catching anything, it is guessing and being right sometimes.
+
+**What this does not fix:** a file-scope check. "This file never disables the banner" is a
+real fault and a real rule — it is simply not a *line* question, and it wants a pass that
+reads the whole file once rather than a window of eight lines. Struck, not forgotten.
