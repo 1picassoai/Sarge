@@ -18,8 +18,13 @@ say so in [Discussions](https://github.com/1picassoai/Sarge/discussions).
 ## What changed
 
 **The Python harness is no longer the product.** `python/`, `tools/console.py` and the console
-scripts moved to `testing/` — moved, not deleted, with a README saying what each was. They were
-our test equipment, and we had been fixing them as though they were the thing being sold.
+scripts are out of the tree. They were our test equipment, and we had been fixing them as
+though they were the thing being sold. Their last shipped form is the
+[v0.2.0 tag](https://github.com/1picassoai/Sarge/tree/v0.2.0).
+
+*Corrected 24 Sep: this note first said the harness had moved to `testing/` with a README.
+It had — and the same day, before this tag was cut, that folder was removed along with the
+design documents. The sentence was published false; this is the true one.*
 
 **Sarge is `hooks/sarge_check.py` — 149 lines.** On every write the organ judges the file
 against your `.sarge`; on every run, while a hit stands, the command is refused. Your agent

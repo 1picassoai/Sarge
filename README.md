@@ -121,6 +121,6 @@ Your own rules go in `.sarge` at your repo root. Yours always win.
 | download | 2.3 GB, almost all of it the model |
 | checking one file | a few seconds on a GPU, about a minute on 4 cores |
 | rules it ships with | 22 for Node, 3 universal — the check enforces 19 of the 22 and 2 of the 3; the rest are guidance the model is shown but the check cannot judge on one line |
-| what leaves your machine | nothing. The check only talks to a model on your own machine — it refuses any other address unless you explicitly allow it. The tutor is the one exception, and only if you give it a key |
+| what leaves your machine | nothing. The check only talks to a model on your own machine — it refuses any other address unless you explicitly allow it |
 
 MIT. Something it got wrong? [Discussions](../../discussions).
