@@ -37,14 +37,17 @@ quietly tell you everything's fine when it hasn't looked.
 | where your code goes | to their servers | nowhere | nowhere |
 
 **We measured it rather than claiming it.** We took a file a local model wrote with no
-help, and gave it to both:
+help — four faults in it — and asked what each setup does with them:
 
-| the fault | ESLint | Sarge |
-|---|---|---|
-| a syntax error | **caught** | missed |
-| used the `sqlite3` package where the repo uses `node:sqlite` | missed | **caught**, all 3 sites |
-| hardcoded the database path | missed | **caught**, all 3 sites |
-| opened a new database connection per request | missed | missed |
+| the fault | no Sarge | ESLint | Sarge |
+|---|---|---|---|
+| a syntax error | crashes on start | **caught** | missed |
+| used the `sqlite3` package where the repo uses `node:sqlite` | shipped | missed | **caught**, all 3 sites |
+| hardcoded the database path | shipped | missed | **caught**, all 3 sites |
+| opened a new database connection per request | shipped | missed | missed |
+
+*No Sarge* is the baseline: what your agent ships when nothing reads its work. The only
+fault it finds is the one that stops the app starting, and it finds it by crashing.
 
 ESLint found the syntax error — which `node --check` catches anyway. Once that was fixed,
 it passed the file clean. It has no way to know your repo uses `node:sqlite`: that's a
